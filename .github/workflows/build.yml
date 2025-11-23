@@ -89,9 +89,13 @@ jobs:
           # Update server.json version (both top-level and package version)
           sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$v\"/g" ../../server.json
           
-          # Update IDE Tools hook scripts with new version
-          sed -i "s/defenter-proxy==[0-9]*\.[0-9]*\.[0-9]*/defenter-proxy==$v/" scripts/cursor/hooks/defenter-cursor-hook.sh
-          sed -i "s/defenter-proxy==[0-9]*\.[0-9]*\.[0-9]*/defenter-proxy==$v/" scripts/cursor/hooks/defenter-cursor-hook.bat
+          # Update hook scripts
+          sed -i "s/defenter-proxy==[0-9]*\.[0-9]*\.[0-9]*/defenter-proxy==$v/" ../scripts/cursor/hooks/defenter-cursor-hook.sh
+          sed -i "s/defenter-proxy==[0-9]*\.[0-9]*\.[0-9]*/defenter-proxy==$v/" ../scripts/cursor/hooks/defenter-cursor-hook.bat
+          
+          # Update jamf
+          sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$v\"/" ../jamf/package.json
+          sed -i "s/export const VERSION = \".*\";/export const VERSION = \"$v\";/" ../jamf/src/version.ts
           
           echo "Bumped version to $v"
 
@@ -107,9 +111,11 @@ jobs:
           name: version-files
           path: |
             targets/vsc-extension/package.json
+            targets/jamf/package.json
+            targets/jamf/src/version.ts
             targets/package-lock.json
-            targets/vsc-extension/scripts/cursor/hooks/defenter-cursor-hook.sh
-            targets/vsc-extension/scripts/cursor/hooks/defenter-cursor-hook.bat
+            targets/scripts/cursor/hooks/defenter-cursor-hook.sh
+            targets/scripts/cursor/hooks/defenter-cursor-hook.bat
             src/wrapper/__version__.py
             pyproject.toml
             uv.lock
@@ -165,7 +171,7 @@ jobs:
           v=$(node -p "require('./package.json').version")
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add package.json ../package-lock.json scripts/cursor/hooks/defenter-cursor-hook.sh scripts/cursor/hooks/defenter-cursor-hook.bat ../../src/wrapper/__version__.py ../../pyproject.toml ../../uv.lock ../../server.json ../../src/modules/redaction/gitleaks_rules.py
+          git add package.json ../jamf/package.json ../jamf/src/version.ts ../package-lock.json ../scripts/cursor/hooks/defenter-cursor-hook.sh ../scripts/cursor/hooks/defenter-cursor-hook.bat ../../src/wrapper/__version__.py ../../pyproject.toml ../../uv.lock ../../server.json ../../src/modules/redaction/gitleaks_rules.py
           git commit -m "chore: bump version to $v [skip ci]"
           git pull --rebase origin main
           git push
