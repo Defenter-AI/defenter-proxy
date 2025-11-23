@@ -2,23 +2,24 @@ import { basename, dirname, join, normalize, resolve } from "path";
 import { promises as fs } from "fs";
 import { homedir } from "os";
 import { createHash } from "crypto";
-import { UvRunner } from "../uvRunner";
-import { detectIDEFromScriptPath } from "../utils";
 import * as JSONC from "jsonc-parser";
-import log from "../log";
 import { fileExists, isRemoteUrl, parseJsonc, writeFile } from "@defenter/common-ts/utils";
 import { FileWatcher } from "@defenter/common-ts/watcher";
-import { MCPConfig, MCPServerConfig } from "@defenter/common-ts/types";
+import { MCPConfig, MCPServerConfig, IErrorHandler, IConfigDiscoverer, IUvRunner, ILogger } from "@defenter/common-ts/types";
 
 export class ConfigurationMonitor {
-    private uvRunner: UvRunner | undefined;
-    private vscode: typeof import("vscode") | undefined;
+    private uvRunner: IUvRunner | undefined;
+    private discoverer: IConfigDiscoverer | undefined;
+    private errorHandler: IErrorHandler;
+    private logger: ILogger;
     private fileWatcher: FileWatcher;
     private isMonitoring: boolean = false;
     private readonly currentIDE: string | undefined;
 
-    constructor() {
-        this.currentIDE = detectIDEFromScriptPath();
+    constructor(errorHandler: IErrorHandler, logger: ILogger, currentIDE?: string) {
+        this.errorHandler = errorHandler;
+        this.logger = logger;
+        this.currentIDE = currentIDE;
 
         // Create file watcher with callbacks
         this.fileWatcher = new FileWatcher({
@@ -26,9 +27,9 @@ export class ConfigurationMonitor {
                 await this.processConfigurationFile(filePath);
             },
             onShowError: (message: string) => {
-                this.vscode?.window.showErrorMessage(message);
+                this.errorHandler.showError(message);
             },
-            logger: log,
+            logger: this.logger,
         });
     }
 
@@ -134,6 +135,34 @@ export class ConfigurationMonitor {
     }
 
     /**
+     * Get standard system paths for different AI clients
+     */
+    private getSystemPaths(homeDir: string): Record<string, string[]> {
+        const createPaths = (appName: string, subPaths: string[] = []) => [
+            join(homeDir, `.${appName.toLowerCase()}`, "mcp.json"),
+            ...subPaths.map(subPath => join(homeDir, subPath, "mcp.json")),
+        ];
+
+        const appSupportPaths = (appName: string) => [
+            join("Library", "Application Support", appName, "User"),
+            join("AppData", "Roaming", appName, "User"),
+        ];
+
+        return {
+            kiro: createPaths("kiro", [join(".kiro", "settings")]),
+            antigravity: createPaths("antigravity", appSupportPaths("Antigravity")),
+            cursor: createPaths("cursor", appSupportPaths("Cursor")),
+            windsurf: createPaths("windsurf", appSupportPaths("Windsurf")),
+            claude: createPaths("claude", [
+                join("Library", "Application Support", "Claude"),
+                join("AppData", "Roaming", "Claude"),
+            ]),
+            vscode: createPaths("vscode", appSupportPaths("Code")),
+            cline: createPaths("cline", appSupportPaths("Cline")),
+        };
+    }
+
+    /**
      * Get all files this IDE instance should unwrap (registry + system paths)
      */
     async getAllWrappedFiles(): Promise<string[]> {
@@ -165,80 +194,24 @@ export class ConfigurationMonitor {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    /**
-     * Check multiple file paths in parallel and return existing ones
-     */
-    private async findExistingFiles(
-        paths: string[],
-        clientType: string,
-        context: string
-    ): Promise<string[]> {
-        const existenceChecks = await Promise.allSettled(
-            paths.map(async configPath => ({
-                path: configPath,
-                exists: await fileExists(configPath),
-            }))
-        );
-
-        const existingFiles: string[] = [];
-        for (const result of existenceChecks) {
-            if (result.status === "fulfilled" && result.value.exists) {
-                existingFiles.push(result.value.path);
-                log.debug(
-                    `Found ${context} config for ${clientType}: ${result.value.path}`
-                );
-            }
-        }
-        return existingFiles;
-    }
-
-    /**
-     * Get standard system paths for different AI clients
-     */
-    private getSystemPaths(homeDir: string): Record<string, string[]> {
-        const createPaths = (appName: string, subPaths: string[] = []) => [
-            join(homeDir, `.${appName.toLowerCase()}`, "mcp.json"),
-            ...subPaths.map(subPath => join(homeDir, subPath, "mcp.json")),
-        ];
-
-        // Common app support patterns for macOS/Windows
-        const appSupportPaths = (appName: string) => [
-            join("Library", "Application Support", appName, "User"), // macOS
-            join("AppData", "Roaming", appName, "User"), // Windows
-        ];
-
-        return {
-            kiro: createPaths("kiro", [join(".kiro", "settings")]),
-            antigravity: createPaths("antigravity", appSupportPaths("Antigravity")),
-            cursor: createPaths("cursor", appSupportPaths("Cursor")),
-            windsurf: createPaths("windsurf", appSupportPaths("Windsurf")),
-            claude: createPaths("claude", [
-                join("Library", "Application Support", "Claude"), // macOS (no User subdir)
-                join("AppData", "Roaming", "Claude"), // Windows (no User subdir)
-            ]),
-            vscode: createPaths("vscode", appSupportPaths("Code")),
-            cline: createPaths("cline", appSupportPaths("Cline")),
-        };
-    }
 
     /**
      * Start monitoring MCP configuration files
      */
-    async startMonitoring(uvRunner: UvRunner): Promise<void> {
+    async startMonitoring(uvRunner: IUvRunner, discoverer: IConfigDiscoverer): Promise<void> {
         if (this.isMonitoring) {
             return;
         }
 
-        // Import VS Code APIs directly (we're in extension context)
-        this.vscode = await import("vscode");
         this.uvRunner = uvRunner;
+        this.discoverer = discoverer;
         this.isMonitoring = true;
 
         try {
-            log.info("Starting MCP configuration monitoring...");
+            this.logger.info("Starting MCP configuration monitoring...");
 
             // Discover configuration files
-            const configFiles = await this.discoverConfigurationFiles();
+            const configFiles = await discoverer.discoverConfigFiles();
 
             // Start file watcher
             await this.fileWatcher.startWatching(configFiles);
@@ -251,7 +224,7 @@ export class ConfigurationMonitor {
                 }
             }
         } catch (error) {
-            log.error("Failed to start MCP configuration monitoring", error);
+            this.logger.error("Failed to start MCP configuration monitoring", error);
             await this.stopMonitoring();
         }
     }
@@ -264,24 +237,24 @@ export class ConfigurationMonitor {
             return;
         }
 
-        log.info("Stopping MCP configuration monitoring...");
+        this.logger.info("Stopping MCP configuration monitoring...");
 
         await this.fileWatcher.stopWatching();
         this.fileWatcher.cleanupAllState();
 
         this.isMonitoring = false;
-        log.info("Configuration monitoring stopped");
+        this.logger.info("Configuration monitoring stopped");
     }
 
     /**
      * Handle workspace folder changes
      */
     async handleWorkspaceChange(): Promise<void> {
-        log.info("Workspace changed - re-establishing MCP configuration monitoring...");
+        this.logger.info("Workspace changed - re-establishing MCP configuration monitoring...");
 
         try {
             // Wait for all processing to complete with timeout
-            log.debug("Waiting for all processing to complete...");
+            this.logger.debug("Waiting for all processing to complete...");
             const startTime = Date.now();
 
             // Wait for fileWatcher to finish processing (checking if any files are being processed)
@@ -291,150 +264,21 @@ export class ConfigurationMonitor {
             await this.stopMonitoring();
 
             // Restart monitoring with new workspace
-            if (!this.uvRunner) {
+            if (!this.uvRunner || !this.discoverer) {
                 // noinspection ExceptionCaughtLocallyJS
-                throw new Error("UvRunner not available for workspace change");
+                throw new Error("UvRunner or discoverer not available for workspace change");
             }
-            await this.startMonitoring(this.uvRunner);
+            await this.startMonitoring(this.uvRunner, this.discoverer);
 
-            log.info("✅ Successfully re-established monitoring for new workspace");
+            this.logger.info("✅ Successfully re-established monitoring for new workspace");
         } catch (error) {
-            log.error("Failed to re-establish monitoring after workspace change", error);
-            this.vscode?.window.showErrorMessage(
+            this.logger.error("Failed to re-establish monitoring after workspace change", error);
+            this.errorHandler.showError(
                 `Failed to update MCP monitoring for new workspace: ${error}`
             );
         }
     }
 
-    /**
-     * Discover MCP configuration files in workspace and system locations
-     */
-    private async discoverConfigurationFiles(): Promise<string[]> {
-        const configs: string[] = [];
-        const aiClientType = this.detectAIClientType();
-
-        /**
-         * Find MCP configuration files in workspace
-         */
-        if (this.vscode?.workspace.workspaceFolders) {
-            for (const folder of this.vscode.workspace.workspaceFolders) {
-                const workspacePath = folder.uri.fsPath;
-
-                // Generic workspace configs (always included)
-                const genericPaths = [
-                    join(workspacePath, "mcp.json"),
-                    join(workspacePath, ".mcp.json"),
-                ];
-
-                // Client-specific workspace configs (only for detected AI client)
-                const getClientWorkspacePath = (clientName: string, subdir?: string) =>
-                    join(workspacePath, `.${clientName}`, subdir || "", "mcp.json");
-
-                const clientPaths: Record<string, string[]> = {
-                    kiro: [getClientWorkspacePath("kiro", "settings")],
-                    antigravity: [getClientWorkspacePath("vscode")],
-                    cursor: [getClientWorkspacePath("cursor")],
-                    windsurf: [getClientWorkspacePath("windsurf")],
-                    claude: [getClientWorkspacePath("claude")],
-                    vscode: [getClientWorkspacePath("vscode")],
-                    cline: [getClientWorkspacePath("cline")],
-                };
-                const clientSpecificPaths = clientPaths[aiClientType] || [];
-
-                // Check all paths in parallel for better performance
-                const allPaths = [...new Set([...genericPaths, ...clientSpecificPaths])];
-                const workspaceConfigs = await this.findExistingFiles(
-                    allPaths,
-                    aiClientType,
-                    "workspace"
-                );
-                configs.push(...workspaceConfigs);
-            }
-        }
-
-        /**
-         * Find system-wide MCP configuration files
-         */
-        const systemPaths = this.getSystemPaths(homedir());
-        const systemConfigPaths = systemPaths[aiClientType] || [];
-        const systemConfigs = await this.findExistingFiles(
-            systemConfigPaths,
-            aiClientType,
-            "system"
-        );
-        configs.push(...systemConfigs);
-
-        // Deduplicate paths (multiple workspaces can add the same file twice)
-        return Array.from(new Set(configs.map(p => normalize(resolve(p)))));
-    }
-
-    /**
-     * Detect the AI client type based on VS Code variant
-     * Enhanced with multiple detection methods and proper logging
-     */
-    private detectAIClientType(): string {
-        const extensionHost = this.vscode?.env.appName?.toLowerCase() ?? "_unknown";
-        const executablePath = process.execPath.toLowerCase();
-
-        log.debug(
-            `Detecting AI client: appName="${this.vscode?.env.appName ?? "_unknown"}", execPath="${process.execPath}"`
-        );
-
-        // Define client patterns for DRY detection
-        const clientPatterns = [
-            { name: "cursor", patterns: ["cursor"] },
-            { name: "antigravity", patterns: ["antigravity"] },
-            { name: "windsurf", patterns: ["windsurf"] },
-            { name: "claude", patterns: ["claude"] },
-            { name: "kiro", patterns: ["kiro"] },
-            { name: "cline", patterns: ["cline"] },
-            {
-                name: "vscode",
-                patterns: [
-                    "autopilot",
-                    "github copilot",
-                    "visual studio code",
-                    "code",
-                    "vscode",
-                ],
-            },
-        ];
-
-        // Check app name first
-        for (const client of clientPatterns) {
-            for (const pattern of client.patterns) {
-                if (extensionHost.includes(pattern) || extensionHost === pattern) {
-                    log.debug(
-                        `Detected AI client: ${client.name} (via appName - ${pattern})`
-                    );
-                    return client.name;
-                }
-            }
-        }
-
-        // Fallback to executable path
-        for (const client of clientPatterns) {
-            for (const pattern of client.patterns) {
-                if (executablePath.includes(pattern)) {
-                    log.debug(
-                        `Detected AI client: ${client.name} (via execPath - ${pattern})`
-                    );
-                    return client.name;
-                }
-            }
-        }
-
-        // Log detection failure for debugging
-        log.warn(
-            `Could not detect AI client type. appName: ${extensionHost}, execPath: ${executablePath}`
-        );
-        log.warn(
-            'Defaulting to "unknown" - will not modify any client-specific configurations'
-        );
-
-        // Conservative default - don't modify anything if we can't detect
-        return "unknown";
-    }
 
     /**
      * Extract raw JSONC string from wrapped server configuration (or backup)
@@ -527,12 +371,12 @@ export class ConfigurationMonitor {
                 await writeFile(configPath, result.modifiedContent);
                 // Record write to prevent processing loop
                 this.fileWatcher.recordWrite(configPath);
-                log.info(`${result.successMessage}: ${configPath}`);
+                this.logger.info(`${result.successMessage}: ${configPath}`);
             }
 
             return result.hasChanges;
         } catch (error) {
-            log.error(`Failed to process configuration ${configPath}:`, error);
+            this.logger.error(`Failed to process configuration ${configPath}:`, error);
             return false;
         }
     }
@@ -557,7 +401,7 @@ export class ConfigurationMonitor {
                     // Get the raw JSONC from --wrapped-config
                     const rawConfig = this.extractRawWrappedConfig(serverConfig);
                     if (!rawConfig) {
-                        log.warn(
+                        this.logger.warn(
                             `Failed to extract raw config for server ${serverName}, skipping`
                         );
                         continue; // Skip this server, keep as-is
@@ -592,7 +436,7 @@ export class ConfigurationMonitor {
                         modifiedContent = before + rawConfig + after;
                         hasChanges = true;
                     } catch (error) {
-                        log.warn(`Failed to unwrap server ${serverName}:`, error);
+                        this.logger.warn(`Failed to unwrap server ${serverName}:`, error);
                         // Skip this server, keep as-is
                     }
                 }
@@ -618,7 +462,7 @@ export class ConfigurationMonitor {
      * Note: Circuit breaker and concurrency control are handled by FileWatcher
      */
     private async processConfigurationFile(configPath: string): Promise<void> {
-        log.info(`Processing configuration file:\n${configPath}`);
+        this.logger.info(`Processing configuration file:\n${configPath}`);
 
         // Read and parse configuration
         const config = await this.readConfiguration(configPath);
@@ -629,10 +473,10 @@ export class ConfigurationMonitor {
         // Wrap MCP servers with Defenter proxy using JSONC tree manipulation
         const hasChanges = await this.wrapConfigurationInFile(configPath);
         if (!hasChanges) {
-            log.debug(`✅ All servers already wrapped in: ${configPath}`);
+            this.logger.debug(`✅ All servers already wrapped in: ${configPath}`);
         }
 
-        log.info(`Successfully processed configuration: ${configPath}`);
+        this.logger.info(`Successfully processed configuration: ${configPath}`);
     }
 
     /**
@@ -644,12 +488,12 @@ export class ConfigurationMonitor {
             return parseJsonc(content) as MCPConfig;
         } catch (error) {
             if (error instanceof SyntaxError) {
-                log.error(`Invalid JSON/JSONC in ${configPath}`, error);
-                this.vscode?.window.showErrorMessage(
+                this.logger.error(`Invalid JSON/JSONC in ${configPath}`, error);
+                this.errorHandler.showError(
                     `Configuration file has invalid JSON/JSONC: ${configPath}\nPlease fix the JSON/JSONC syntax and save the file.`
                 );
             } else {
-                log.error(`Failed to read configuration ${configPath}`, error);
+                this.logger.error(`Failed to read configuration ${configPath}`, error);
             }
             return undefined;
         }
@@ -669,7 +513,7 @@ export class ConfigurationMonitor {
         if (config.extensions !== undefined) {
             return "extensions";
         }
-        log.warn("Invalid MCP configs; missing 'mcpServers'/'servers'/'extensions'");
+        this.logger.warn("Invalid MCP configs; missing 'mcpServers'/'servers'/'extensions'");
         return undefined;
     }
 
@@ -680,7 +524,7 @@ export class ConfigurationMonitor {
     private isAlreadyWrapped(serverConfig: MCPServerConfig): boolean {
         const hasArg = serverConfig.args?.includes("--wrapped-config");
         if (hasArg) {
-            log.debug("Server already wrapped (arg detected).");
+            this.logger.debug("Server already wrapped (arg detected).");
         }
         return Boolean(hasArg);
     }
@@ -691,7 +535,7 @@ export class ConfigurationMonitor {
      */
     async wrapConfigurationInFile(configPath: string): Promise<boolean> {
         if (!this.uvRunner) {
-            log.error(
+            this.logger.error(
                 "Cannot wrap configuration: uv runner not initialized. Call startMonitoring() first."
             );
             return false;
@@ -725,12 +569,12 @@ export class ConfigurationMonitor {
 
                     if (isWrapped) {
                         // Extract raw config from wrapped server for re-wrapping
-                        log.info(
+                        this.logger.info(
                             `Re-wrapping server ${serverName} for version migration`
                         );
                         const extracted = this.extractRawWrappedConfig(serverConfig);
                         if (!extracted) {
-                            log.warn(
+                            this.logger.warn(
                                 `Failed to extract raw config for server ${serverName}, skipping`
                             );
                             continue;
@@ -770,7 +614,7 @@ export class ConfigurationMonitor {
                         const parsedConfig = parseJsonc(rawServerJsonc);
 
                         if (parsedConfig.url && isRemoteUrl(parsedConfig.url)) {
-                            log.info(
+                            this.logger.info(
                                 `Server ${serverName} has remote URL, wrapping with @mcpower/mcp-remote`
                             );
 
@@ -790,7 +634,7 @@ export class ConfigurationMonitor {
                             rawServerJsonc = JSON.stringify(mcpRemoteConfig);
                         }
                     } catch (error) {
-                        log.warn(
+                        this.logger.warn(
                             `Config is not URL-based or parsing failed for ${serverName}, proceeding with standard wrapping`
                         );
                     }
