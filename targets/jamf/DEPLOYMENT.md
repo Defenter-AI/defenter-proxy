@@ -46,7 +46,7 @@ scripts /usr/local/defenter/
 ai.defenter.jamf.plist /Library/LaunchDaemons/
 ```
 
-### 3. Post install script
+### 3. Post-Deploy script
 ```bash
 # Set correct ownership and permissions
 sudo chmod +x /usr/local/defenter/defenter-jamf.sh
@@ -100,14 +100,4 @@ const extensionPath = process.env.DEFENTER_EXTENSION_PATH || __dirname;
 ```javascript
 join(extensionPath, "scripts", "cursor", "hooks", "defenter-cursor-hook.sh")
 // = "/usr/local/defenter/scripts/cursor/hooks/defenter-cursor-hook.sh"
-```
-
-## Post-Deploy Setup
-
-After copying files to `/usr/local/defenter/`, run:
-
-```bash
-chmod +x /usr/local/defenter/defenter-jamf.sh
-chmod +x /usr/local/defenter/scripts/setup-uvx-macos.sh
-chmod +x /usr/local/defenter/scripts/cursor/hooks/defenter-cursor-hook.sh
 ```
