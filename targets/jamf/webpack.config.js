@@ -71,6 +71,10 @@ module.exports = {
                     from: path.resolve(__dirname, "defenter-jamf.sh"),
                     to: path.resolve(__dirname, "dist/defenter-jamf.sh"),
                 },
+                {
+                    from: path.resolve(__dirname, "ai.defenter.jamf.plist"),
+                    to: path.resolve(__dirname, "dist/ai.defenter.jamf.plist"),
+                },
             ],
         }),
     ],
