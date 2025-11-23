@@ -433,3 +433,4 @@ export const samePath = (a: string, b: string): boolean => {
 };
 
 export { getIdeSystemConfigPaths } from "./ideConfigPaths";
+export { getUvCommand } from "./uvCommand";

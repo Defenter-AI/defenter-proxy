@@ -6,7 +6,7 @@ import { spawn } from "child_process";
 import log from "./log";
 import { getCurrentExtensionVersion } from "./utils";
 import { IUvRunner, UvCommand } from "@defenter/common-ts/types";
-import { fileExists, mapOS } from "@defenter/common-ts/utils";
+import { fileExists, mapOS, getUvCommand } from "@defenter/common-ts/utils";
 
 export class UvRunner implements IUvRunner {
     private context: vscode.ExtensionContext;
@@ -37,26 +37,11 @@ export class UvRunner implements IUvRunner {
     }
 
     getCommand(): UvCommand {
-        // If DEFENTER_LOCAL_PROXY_PATH is set, use the local proxy path
-        if (process.env["DEFENTER_LOCAL_PROXY_PATH"]) {
-            return {
-                executable: "uv",
-                args: [
-                    "run",
-                    "--directory",
-                    process.env["DEFENTER_LOCAL_PROXY_PATH"],
-                    "defenter-proxy",
-                ],
-            };
-        }
-
         if (!this.uvxCommand) {
             throw new Error("uvx command not available; initialize() first");
         }
 
-        const args = [`defenter-proxy==${this.version}`];
-
-        return { executable: this.uvxCommand, args };
+        return getUvCommand(this.version, this.uvxCommand);
     }
 
     private async installUvx(): Promise<string> {
