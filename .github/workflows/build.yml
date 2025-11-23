@@ -158,11 +158,24 @@ jobs:
           npm run package:vsc-extension
           echo "Packaging completed successfully"
 
+      - name: Build jamf target
+        working-directory: targets/jamf
+        run: |
+          echo "Building jamf target..."
+          npm run build
+          echo "Jamf build completed successfully"
+
       - name: Upload extension artifact
         uses: actions/upload-artifact@v4
         with:
           name: defenter-extension
           path: targets/vsc-extension/*.vsix
+
+      - name: Upload jamf artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: defenter-jamf
+          path: targets/jamf/dist/**/*
 
       - name: Commit version bump
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -198,13 +211,26 @@ jobs:
           name: defenter-extension
           path: release/
 
+      - name: Download jamf artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: defenter-jamf
+          path: release/jamf/
+
+      - name: Package jamf for distribution
+        run: |
+          cd release/jamf
+          tar -czf ../defenter-jamf-macos-v${{ needs.package-extension.outputs.new_version }}.tar.gz ./*
+
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
           tag: v${{ needs.package-extension.outputs.new_version }}
           name: Defenter v${{ needs.package-extension.outputs.new_version }}
           generateReleaseNotes: true
-          artifacts: "release/*.vsix"
+          artifacts: |
+            release/*.vsix
+            release/defenter-jamf-macos-*.tar.gz
           token: ${{ secrets.GITHUB_TOKEN }}
 
   publish-pypi:
