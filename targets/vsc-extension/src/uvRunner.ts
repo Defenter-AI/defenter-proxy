@@ -5,10 +5,10 @@ import * as os from "os";
 import { spawn } from "child_process";
 import log from "./log";
 import { getCurrentExtensionVersion } from "./utils";
-import { UvCommand } from "@defenter/common-ts/types";
+import { IUvRunner, UvCommand } from "@defenter/common-ts/types";
 import { fileExists, mapOS } from "@defenter/common-ts/utils";
 
-export class UvRunner {
+export class UvRunner implements IUvRunner {
     private context: vscode.ExtensionContext;
     private uvxCommand: string | undefined;
     private version: string;
@@ -41,7 +41,12 @@ export class UvRunner {
         if (process.env["DEFENTER_LOCAL_PROXY_PATH"]) {
             return {
                 executable: "uv",
-                args: ["run", "--directory", process.env["DEFENTER_LOCAL_PROXY_PATH"], "defenter-proxy"],
+                args: [
+                    "run",
+                    "--directory",
+                    process.env["DEFENTER_LOCAL_PROXY_PATH"],
+                    "defenter-proxy",
+                ],
             };
         }
 

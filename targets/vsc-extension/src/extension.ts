@@ -1,6 +1,7 @@
-import * as vscode from "vscode";
-import { ConfigurationMonitor } from "./configurationMonitor";
-import { CursorHooksMonitor } from "./cursorHooksMonitor";
+import vscode from "vscode";
+import { ConfigurationMonitor } from "@defenter/common-ts/monitors/configurationMonitor";
+import { CursorHooksMonitor } from "@defenter/common-ts/monitors/cursorHooksMonitor";
+import { VscodeConfigDiscoverer } from "./configsDiscoverer";
 import { UvRunner } from "./uvRunner";
 import { AuditTrailView } from "./auditTrail";
 import { ExtensionState } from "./types";
@@ -12,6 +13,28 @@ import {
     updateStoredExtensionVersion,
 } from "./utils";
 import { reportLifecycleEvent } from "./api";
+import { IErrorHandler, ILogger } from "@defenter/common-ts/types";
+
+class VscodeLoggerAdapter implements ILogger {
+    debug(message: string, ...args: any[]): void {
+        log.debug(message, ...args);
+    }
+    info(message: string, ...args: any[]): void {
+        log.info(message, ...args);
+    }
+    warn(message: string, ...args: any[]): void {
+        log.warn(message, ...args);
+    }
+    error(message: string, error?: any): void {
+        log.error(message, error);
+    }
+}
+
+class VscodeErrorHandler implements IErrorHandler {
+    showError(message: string): void {
+        vscode.window.showErrorMessage(message);
+    }
+}
 
 let state: ExtensionState | undefined;
 
@@ -41,11 +64,22 @@ const performInitialization = async (
     _state: Omit<ExtensionState, "configMonitor" | "cursorHooksMonitor">
 ): Promise<void> => {
     const ideType = detectIDEFromScriptPath();
+    const errorHandler = new VscodeErrorHandler();
+    const logger = new VscodeLoggerAdapter();
+    const discoverer = new VscodeConfigDiscoverer();
 
     state = {
         ..._state,
-        configMonitor: new ConfigurationMonitor(),
-        cursorHooksMonitor: ideType === "cursor" ? new CursorHooksMonitor() : undefined,
+        configMonitor: new ConfigurationMonitor(errorHandler, logger, ideType),
+        cursorHooksMonitor:
+            ideType === "cursor"
+                ? new CursorHooksMonitor(
+                      undefined,
+                      _state.context.extensionPath,
+                      errorHandler,
+                      logger
+                  )
+                : undefined,
     };
     await state.uvRunner.initialize();
 
@@ -61,13 +95,12 @@ const performInitialization = async (
     state.context.subscriptions.push(workspaceChangeListener);
 
     // Start MCP configuration monitoring
-    await state.configMonitor.startMonitoring(state.uvRunner);
+    await state.configMonitor.startMonitoring(state.uvRunner, discoverer);
 
     // Start Cursor hooks monitoring
-    await state.cursorHooksMonitor?.startMonitoring(
-        state.context.extensionPath,
-        state.uvRunner
-    );
+    const workspaceRoots =
+        vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath) || [];
+    await state.cursorHooksMonitor?.startMonitoring(state.uvRunner, workspaceRoots);
 
     const auditTrailView = new AuditTrailView(state.context);
     await auditTrailView.initialize();
@@ -131,17 +164,11 @@ export async function activate(context: vscode.ExtensionContext) {
 
             // Show the appropriate message
             if (isFirstActivation) {
-                await showPersistentAction(
-                    "✅ Defenter Installed",
-                    "Activate",
-                    () => {
-                        setTimeout(() => {
-                            vscode.commands.executeCommand(
-                                "workbench.action.reloadWindow"
-                            );
-                        }, 100);
-                    }
-                );
+                await showPersistentAction("✅ Defenter Installed", "Activate", () => {
+                    setTimeout(() => {
+                        vscode.commands.executeCommand("workbench.action.reloadWindow");
+                    }, 100);
+                });
             } else {
                 await showPersistentAction("✅ Defenter updated", "Apply changes", () => {
                     setTimeout(() => {

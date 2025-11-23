@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { ConfigurationMonitor } from "./configurationMonitor";
-import { CursorHooksMonitor } from "./cursorHooksMonitor";
+import { ConfigurationMonitor } from "@defenter/common-ts/monitors/configurationMonitor";
+import { CursorHooksMonitor } from "@defenter/common-ts/monitors/cursorHooksMonitor";
 import { UvRunner } from "./uvRunner";
 
 export interface ExtensionState {

@@ -1,8 +1,36 @@
-import { ConfigurationMonitor } from "./configurationMonitor";
-import { CursorHooksMonitor } from "./cursorHooksMonitor";
+import { ConfigurationMonitor } from "@defenter/common-ts/monitors/configurationMonitor";
+import { CursorHooksMonitor } from "@defenter/common-ts/monitors/cursorHooksMonitor";
+import { IErrorHandler, ILogger } from "@defenter/common-ts/types";
 import { constants, promises as fs } from "fs";
 import { detectIDEFromScriptPath } from "./utils";
 import { reportLifecycleEvent } from "./api";
+
+/**
+ * Simple console error handler for uninstall hook
+ */
+class ConsoleErrorHandler implements IErrorHandler {
+    showError(message: string): void {
+        console.error(message);
+    }
+}
+
+/**
+ * Simple console logger for uninstall hook
+ */
+class ConsoleLogger implements ILogger {
+    debug(message: string, ...args: any[]): void {
+        console.log(`[DEBUG] ${message}`, ...args);
+    }
+    info(message: string, ...args: any[]): void {
+        console.log(`[INFO] ${message}`, ...args);
+    }
+    warn(message: string, ...args: any[]): void {
+        console.warn(`[WARN] ${message}`, ...args);
+    }
+    error(message: string, error?: any): void {
+        console.error(`[ERROR] ${message}`, error);
+    }
+}
 
 /**
  * Uninstall hook script for Defenter
@@ -15,9 +43,10 @@ async function main() {
     try {
         await reportLifecycleEvent("uninstall");
 
-        const configMonitor = new ConfigurationMonitor();
-
-        const detectedIDE = configMonitor.getCurrentIDE();
+        const errorHandler = new ConsoleErrorHandler();
+        const logger = new ConsoleLogger();
+        const detectedIDE = detectIDEFromScriptPath();
+        const configMonitor = new ConfigurationMonitor(errorHandler, logger, detectedIDE);
         if (!detectedIDE) {
             console.error(
                 "❌ Cannot detect IDE from script path - unsafe to proceed with cleanup"
@@ -77,7 +106,13 @@ async function main() {
             case "cursor":
                 console.log("\nCleaning up Cursor hooks...");
                 try {
-                    const cursorHooksMonitor = new CursorHooksMonitor();
+                    // Use default hooks file path and current directory as an extension path
+                    const cursorHooksMonitor = new CursorHooksMonitor(
+                        undefined, // Use default hooks file path
+                        __dirname, // Extension path (script directory)
+                        errorHandler,
+                        logger
+                    );
                     await cursorHooksMonitor.unregisterHook();
                     console.log("✅ Cursor hooks unregistered");
                 } catch (error: any) {
