@@ -378,7 +378,7 @@ export function hashProjectPath(projectPath: string): string {
  */
 export function getProjectDefenterDir(projectPath: string | null): string {
     const baseDir = path.join(os.homedir(), ".defenter", ".projects");
-    
+
     if (projectPath) {
         try {
             if (fs.existsSync(projectPath) && fs.statSync(projectPath).isDirectory()) {
@@ -389,7 +389,7 @@ export function getProjectDefenterDir(projectPath: string | null): string {
             // Fall through to global fallback
         }
     }
-    
+
     return path.join(baseDir, "_global");
 }
 
@@ -431,3 +431,5 @@ export const samePath = (a: string, b: string): boolean => {
     }
     return pa === pb;
 };
+
+export { getIdeSystemConfigPaths } from "./ideConfigPaths";
