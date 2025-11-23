@@ -11,7 +11,10 @@ const path = require("path");
 class BuildCleaner {
     constructor() {
         this.projectRoot = path.dirname(path.dirname(__dirname));
-        this.extensionRoot = path.join(this.projectRoot, "targets", "vsc-extension");
+        this.targetsRoot = path.join(this.projectRoot, "targets");
+        this.extensionRoot = path.join(this.targetsRoot, "vsc-extension");
+        this.jamfRoot = path.join(this.targetsRoot, "jamf");
+        this.commonTsRoot = path.join(this.targetsRoot, "common-ts");
         this.srcRoot = path.join(this.projectRoot, "src");
     }
 
@@ -21,7 +24,7 @@ class BuildCleaner {
 
         let totalCleaned = 0;
 
-        totalCleaned += await this.cleanExtensionFiles();
+        totalCleaned += await this.cleanTargetFiles();
         totalCleaned += await this.cleanSrcFiles();
         totalCleaned += await this.cleanProjectFiles();
         totalCleaned += await this.cleanNodeModules();
@@ -31,23 +34,21 @@ class BuildCleaner {
         );
     }
 
-    async cleanExtensionFiles() {
-        console.log("\n📦 Cleaning extension build files...");
+    async cleanTargetFiles() {
+        console.log("\n📦 Cleaning target build files...");
         let cleaned = 0;
 
-        const extensionPaths = [
-            // TypeScript compilation output
+        const targetPaths = [
+            // VSCode Extension
             path.join(this.extensionRoot, "out"),
             path.join(this.extensionRoot, "dist"),
-
-            // Bundled Python source
             path.join(this.extensionRoot, "proxy-bundled"),
-
-            // Extension packages
+            path.join(this.jamfRoot, "dist"),
+            path.join(this.commonTsRoot, "dist"),
             ...this.globSync(path.join(this.extensionRoot, "*.vsix")),
         ];
 
-        for (const filePath of extensionPaths) {
+        for (const filePath of targetPaths) {
             if (await this.removeIfExists(filePath)) {
                 cleaned++;
             }
@@ -116,12 +117,11 @@ class BuildCleaner {
         console.log("\n📦 Cleaning node_modules across targets...");
         let cleaned = 0;
 
-        const targetsDir = path.join(this.projectRoot, "targets");
         const nodeModulesPaths = [
-            path.join(targetsDir, "node_modules"),
-            path.join(targetsDir, "vsc-extension", "node_modules"),
-            path.join(targetsDir, "claude-code-plugin", "node_modules"),
-            path.join(targetsDir, "common-ts", "node_modules"),
+            path.join(this.targetsRoot, "node_modules"),
+            path.join(this.extensionRoot, "node_modules"),
+            path.join(this.jamfRoot, "node_modules"),
+            path.join(this.commonTsRoot, "node_modules"),
         ];
 
         for (const filePath of nodeModulesPaths) {
