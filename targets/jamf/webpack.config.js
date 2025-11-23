@@ -60,8 +60,8 @@ module.exports = {
         new CopyWebpackPlugin({
             patterns: [
                 {
-                    from: path.resolve(__dirname, "../scripts/cursor/hooks"),
-                    to: path.resolve(__dirname, "dist/scripts/cursor/hooks"),
+                    from: path.resolve(__dirname, "../scripts/cursor/hooks/defenter-cursor-hook.sh"),
+                    to: path.resolve(__dirname, "dist/scripts/cursor/hooks/defenter-cursor-hook.sh"),
                 },
                 {
                     from: path.resolve(__dirname, "../scripts/setup-uvx-macos.sh"),
