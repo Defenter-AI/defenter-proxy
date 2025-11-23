@@ -4,7 +4,8 @@
   "private": true,
   "workspaces": [
     "common-ts",
-    "vsc-extension"
+    "vsc-extension",
+    "jamf"
   ],
   "scripts": {
     "clean:build": "node scripts/clean-build.js"

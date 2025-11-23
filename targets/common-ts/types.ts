@@ -37,3 +37,15 @@ export interface IErrorHandler {
 export interface IConfigDiscoverer {
     discoverConfigFiles(): Promise<string[]>;
 }
+
+export interface IUvRunner {
+    initialize(cleanCache?: boolean): Promise<void>;
+    getCommand(): UvCommand;
+}
+
+export interface ILogger {
+    debug(message: string, ...args: any[]): void;
+    info(message: string, ...args: any[]): void;
+    warn(message: string, ...args: any[]): void;
+    error(message: string, error?: any): void;
+}

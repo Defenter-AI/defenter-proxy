@@ -17,6 +17,18 @@
     "./watcher": {
       "types": "./dist/watcher/index.d.ts",
       "default": "./dist/watcher/index.js"
+    },
+    "./discovery/cursorStorageParser": {
+      "types": "./dist/discovery/cursorStorageParser.d.ts",
+      "default": "./dist/discovery/cursorStorageParser.js"
+    },
+    "./monitors/configurationMonitor": {
+      "types": "./dist/monitors/configurationMonitor/index.d.ts",
+      "default": "./dist/monitors/configurationMonitor/index.js"
+    },
+    "./monitors/cursorHooksMonitor": {
+      "types": "./dist/monitors/cursorHooksMonitor/index.d.ts",
+      "default": "./dist/monitors/cursorHooksMonitor/index.js"
     }
   },
   "scripts": {
