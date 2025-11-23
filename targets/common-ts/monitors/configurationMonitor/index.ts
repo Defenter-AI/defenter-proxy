@@ -3,9 +3,22 @@ import { promises as fs } from "fs";
 import { homedir } from "os";
 import { createHash } from "crypto";
 import * as JSONC from "jsonc-parser";
-import { fileExists, isRemoteUrl, parseJsonc, writeFile } from "@defenter/common-ts/utils";
+import {
+    fileExists,
+    getIdeSystemConfigPaths,
+    isRemoteUrl,
+    parseJsonc,
+    writeFile,
+} from "@defenter/common-ts/utils";
 import { FileWatcher } from "@defenter/common-ts/watcher";
-import { MCPConfig, MCPServerConfig, IErrorHandler, IConfigDiscoverer, IUvRunner, ILogger } from "@defenter/common-ts/types";
+import {
+    IConfigDiscoverer,
+    IErrorHandler,
+    ILogger,
+    IUvRunner,
+    MCPConfig,
+    MCPServerConfig,
+} from "@defenter/common-ts/types";
 
 export class ConfigurationMonitor {
     private uvRunner: IUvRunner | undefined;
@@ -135,34 +148,6 @@ export class ConfigurationMonitor {
     }
 
     /**
-     * Get standard system paths for different AI clients
-     */
-    private getSystemPaths(homeDir: string): Record<string, string[]> {
-        const createPaths = (appName: string, subPaths: string[] = []) => [
-            join(homeDir, `.${appName.toLowerCase()}`, "mcp.json"),
-            ...subPaths.map(subPath => join(homeDir, subPath, "mcp.json")),
-        ];
-
-        const appSupportPaths = (appName: string) => [
-            join("Library", "Application Support", appName, "User"),
-            join("AppData", "Roaming", appName, "User"),
-        ];
-
-        return {
-            kiro: createPaths("kiro", [join(".kiro", "settings")]),
-            antigravity: createPaths("antigravity", appSupportPaths("Antigravity")),
-            cursor: createPaths("cursor", appSupportPaths("Cursor")),
-            windsurf: createPaths("windsurf", appSupportPaths("Windsurf")),
-            claude: createPaths("claude", [
-                join("Library", "Application Support", "Claude"),
-                join("AppData", "Roaming", "Claude"),
-            ]),
-            vscode: createPaths("vscode", appSupportPaths("Code")),
-            cline: createPaths("cline", appSupportPaths("Cline")),
-        };
-    }
-
-    /**
      * Get all files this IDE instance should unwrap (registry + system paths)
      */
     async getAllWrappedFiles(): Promise<string[]> {
@@ -172,9 +157,9 @@ export class ConfigurationMonitor {
         const registryFiles = await this.getWrappedFiles();
         registryFiles.forEach(file => allFiles.add(file));
 
-        // 2. Add system paths for current IDE only (inline to avoid wrapper function)
+        // 2. Add system paths for current IDE only
         if (this.currentIDE) {
-            const systemPaths = this.getSystemPaths(homedir());
+            const systemPaths = getIdeSystemConfigPaths(homedir());
             const currentIDEPaths = systemPaths[this.currentIDE] || [];
 
             for (const systemPath of currentIDEPaths) {
@@ -194,11 +179,13 @@ export class ConfigurationMonitor {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-
     /**
      * Start monitoring MCP configuration files
      */
-    async startMonitoring(uvRunner: IUvRunner, discoverer: IConfigDiscoverer): Promise<void> {
+    async startMonitoring(
+        uvRunner: IUvRunner,
+        discoverer: IConfigDiscoverer
+    ): Promise<void> {
         if (this.isMonitoring) {
             return;
         }
@@ -250,7 +237,9 @@ export class ConfigurationMonitor {
      * Handle workspace folder changes
      */
     async handleWorkspaceChange(): Promise<void> {
-        this.logger.info("Workspace changed - re-establishing MCP configuration monitoring...");
+        this.logger.info(
+            "Workspace changed - re-establishing MCP configuration monitoring..."
+        );
 
         try {
             // Wait for all processing to complete with timeout
@@ -266,19 +255,25 @@ export class ConfigurationMonitor {
             // Restart monitoring with new workspace
             if (!this.uvRunner || !this.discoverer) {
                 // noinspection ExceptionCaughtLocallyJS
-                throw new Error("UvRunner or discoverer not available for workspace change");
+                throw new Error(
+                    "UvRunner or discoverer not available for workspace change"
+                );
             }
             await this.startMonitoring(this.uvRunner, this.discoverer);
 
-            this.logger.info("✅ Successfully re-established monitoring for new workspace");
+            this.logger.info(
+                "✅ Successfully re-established monitoring for new workspace"
+            );
         } catch (error) {
-            this.logger.error("Failed to re-establish monitoring after workspace change", error);
+            this.logger.error(
+                "Failed to re-establish monitoring after workspace change",
+                error
+            );
             this.errorHandler.showError(
                 `Failed to update MCP monitoring for new workspace: ${error}`
             );
         }
     }
-
 
     /**
      * Extract raw JSONC string from wrapped server configuration (or backup)
@@ -513,7 +508,9 @@ export class ConfigurationMonitor {
         if (config.extensions !== undefined) {
             return "extensions";
         }
-        this.logger.warn("Invalid MCP configs; missing 'mcpServers'/'servers'/'extensions'");
+        this.logger.warn(
+            "Invalid MCP configs; missing 'mcpServers'/'servers'/'extensions'"
+        );
         return undefined;
     }
 
