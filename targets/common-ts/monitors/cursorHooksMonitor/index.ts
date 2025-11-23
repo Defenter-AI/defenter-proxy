@@ -2,11 +2,10 @@ import { basename, dirname, join, normalize } from "path";
 import { promises as fs } from "fs";
 import { homedir } from "os";
 import { spawn } from "child_process";
-import log from "../log";
-import { UvRunner } from "../uvRunner";
 import { HooksConfig } from "./types";
 import { fileExists, mapOS, samePath, updateJsoncFile } from "@defenter/common-ts/utils";
 import { FileWatcher } from "@defenter/common-ts/watcher";
+import { IErrorHandler, IUvRunner, ILogger } from "@defenter/common-ts/types";
 
 /**
  * Cursor hooks monitor
@@ -14,51 +13,50 @@ import { FileWatcher } from "@defenter/common-ts/watcher";
  */
 export class CursorHooksMonitor {
     private readonly hooksFilePath: string;
+    private readonly extensionPath: string;
+    private readonly errorHandler: IErrorHandler;
+    private readonly logger: ILogger;
     private fileWatcher: FileWatcher;
     private isMonitoring: boolean = false;
-    private extensionPath: string | undefined;
 
-    constructor(hooksFilePath?: string) {
+    constructor(hooksFilePath: string | undefined, extensionPath: string, errorHandler: IErrorHandler, logger: ILogger) {
         this.hooksFilePath = hooksFilePath || join(homedir(), ".cursor", "hooks.json");
+        this.extensionPath = extensionPath;
+        this.errorHandler = errorHandler;
+        this.logger = logger;
 
         // Create file watcher with callbacks
         this.fileWatcher = new FileWatcher({
             onFileProcess: async (filePath: string) => {
                 // Process hook registration whenever file changes
-                log.info("Cursor Hooks: hooks.json changed, re-registering hooks");
+                this.logger.info("Cursor Hooks: hooks.json changed, re-registering hooks");
                 await this.registerHooks();
             },
             onFileDelete: async (filePath: string) => {
                 // Recreate file when deleted (auto-registration)
-                log.info("Cursor Hooks: hooks.json deleted, recreating with hooks");
+                this.logger.info("Cursor Hooks: hooks.json deleted, recreating with hooks");
                 await this.registerHooks();
             },
-            logger: log,
+            logger: this.logger,
         });
     }
 
     /**
      * Start monitoring Cursor's hooks.json file
      */
-    async startMonitoring(extensionPath: string, uvRunner: UvRunner): Promise<void> {
-        if (!extensionPath) {
-            log.warn(`Cursor Hooks: Missing extension path`);
-            return;
-        }
-        this.extensionPath = extensionPath;
-
+    async startMonitoring(uvRunner: IUvRunner, workspaceRoots: string[]): Promise<void> {
         if (this.isMonitoring) {
-            log.debug(`Cursor Hooks: already monitoring ${this.hooksFilePath}`);
+            this.logger.debug(`Cursor Hooks: already monitoring ${this.hooksFilePath}`);
             return;
         }
 
         this.isMonitoring = true;
 
         try {
-            log.info(`Cursor Hooks: Starting ${this.hooksFilePath} monitoring`);
+            this.logger.info(`Cursor Hooks: Starting ${this.hooksFilePath} monitoring`);
 
             // Initialize Cursor's "hooks MCP"
-            await this.initializeHooks(uvRunner);
+            await this.initializeHooks(uvRunner, workspaceRoots);
 
             // Register hooks initially
             await this.registerHooks();
@@ -66,7 +64,7 @@ export class CursorHooksMonitor {
             // Start watching the hooks file for changes
             await this.fileWatcher.startWatching([this.hooksFilePath]);
         } catch (error) {
-            log.error("Cursor Hooks: Failed to start hooks monitoring", error);
+            this.logger.error("Cursor Hooks: Failed to start hooks monitoring", error);
             await this.stopMonitoring();
         }
     }
@@ -74,9 +72,9 @@ export class CursorHooksMonitor {
     /**
      * Initialize Cursor hooks with security API (call init handler)
      */
-    private async initializeHooks(uvRunner: UvRunner): Promise<void> {
+    private async initializeHooks(uvRunner: IUvRunner, workspaceRoots: string[]): Promise<void> {
         try {
-            log.info("Cursor Hooks: Initializing hooks with security API");
+            this.logger.info("Cursor Hooks: Initializing hooks with security API");
 
             const uvCommand = uvRunner.getCommand();
             const args = [...uvCommand.args, "--ide-tool", "--ide", "cursor"];
@@ -90,21 +88,16 @@ export class CursorHooksMonitor {
                 // Send common schema input via stdin immediately after spawn
                 if (proc.stdin) {
                     try {
-                        // Lazy import vscode only when needed (not available during uninstall)
-                        const vscode = require("vscode");
                         const input = JSON.stringify({
                             conversation_id: `${Date.now()}`.slice(-8),
                             generation_id: `${Date.now()}`.slice(-8),
                             hook_event_name: "init",
-                            workspace_roots:
-                                vscode.workspace.workspaceFolders?.map(
-                                    (folder: any) => folder.uri.fsPath
-                                ) || [],
+                            workspace_roots: workspaceRoots,
                         });
                         proc.stdin.write(input);
                         proc.stdin.end();
                     } catch (error) {
-                        log.error(
+                        this.logger.error(
                             "Cursor Hooks: Failed to write to init handler stdin",
                             error
                         );
@@ -124,17 +117,17 @@ export class CursorHooksMonitor {
 
                 proc.on("close", code => {
                     if (code === 0) {
-                        log.info("Cursor Hooks: Init handler completed successfully");
+                        this.logger.info("Cursor Hooks: Init handler completed successfully");
                         if (stdout) {
-                            log.debug(`Init handler output: ${stdout}`);
+                            this.logger.debug(`Init handler output: ${stdout}`);
                         }
                         resolve();
                     } else {
-                        log.error(
+                        this.logger.error(
                             `Cursor Hooks: Init handler failed with exit code ${code}`
                         );
                         if (stderr) {
-                            log.error(`Init handler stderr: ${stderr}`);
+                            this.logger.error(`Init handler stderr: ${stderr}`);
                         }
                         // Don't reject - allow monitoring to continue even if init fails
                         resolve();
@@ -142,13 +135,13 @@ export class CursorHooksMonitor {
                 });
 
                 proc.on("error", error => {
-                    log.error("Cursor Hooks: Failed to spawn init handler", error);
+                    this.logger.error("Cursor Hooks: Failed to spawn init handler", error);
                     // Don't reject - allow monitoring to continue even if init fails
                     resolve();
                 });
             });
         } catch (error) {
-            log.error("Cursor Hooks: Failed to initialize hooks", error);
+            this.logger.error("Cursor Hooks: Failed to initialize hooks", error);
             // Don't fail the entire monitoring if init fails
         }
     }
@@ -161,13 +154,13 @@ export class CursorHooksMonitor {
             return;
         }
 
-        log.info("Cursor Hooks: Stopping hooks monitoring");
+        this.logger.info("Cursor Hooks: Stopping hooks monitoring");
 
         await this.fileWatcher.stopWatching();
         this.fileWatcher.cleanupAllState();
 
         this.isMonitoring = false;
-        log.info("Cursor Hooks: Hooks monitoring stopped");
+        this.logger.info("Cursor Hooks: Hooks monitoring stopped");
     }
 
     /**
@@ -210,9 +203,9 @@ export class CursorHooksMonitor {
             // Record write to prevent processing loop (if watcher is still active)
             this.fileWatcher.recordWrite(this.hooksFilePath);
 
-            log.info("Cursor Hooks: Unregistered hooks");
+            this.logger.info("Cursor Hooks: Unregistered hooks");
         } catch (error) {
-            log.error("Cursor Hooks: Failed to unregister hook", error);
+            this.logger.error("Cursor Hooks: Failed to unregister hook", error);
         }
     }
 
@@ -310,7 +303,7 @@ export class CursorHooksMonitor {
                     );
 
                     if (hookExists) {
-                        log.debug(`Cursor Hooks: ${hookName} hook already registered`);
+                        this.logger.debug(`Cursor Hooks: ${hookName} hook already registered`);
                         config.hooks[hookName] = cleaned;
                     } else {
                         config.hooks[hookName] = [
@@ -326,11 +319,11 @@ export class CursorHooksMonitor {
             // Record write to prevent processing loop
             this.fileWatcher.recordWrite(this.hooksFilePath);
 
-            log.info(
+            this.logger.info(
                 `Cursor Hooks: Registered ${Object.keys(scriptsMap).join(", ")} in ${this.hooksFilePath}`
             );
         } catch (error) {
-            log.error("Cursor Hooks: Failed to register hooks", error);
+            this.logger.error("Cursor Hooks: Failed to register hooks", error);
             throw error;
         }
     }
