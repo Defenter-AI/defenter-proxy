@@ -23,3 +23,17 @@ export interface UvCommand {
     executable: string;
     args: string[];
 }
+
+/**
+ * Error handler abstraction for showing errors to users
+ */
+export interface IErrorHandler {
+    showError(message: string): void;
+}
+
+/**
+ * Config file discoverer abstraction
+ */
+export interface IConfigDiscoverer {
+    discoverConfigFiles(): Promise<string[]>;
+}
