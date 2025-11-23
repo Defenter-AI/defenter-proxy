@@ -3,6 +3,22 @@ import { promises as fs } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { CursorHooksMonitor } from "../index";
+import { IErrorHandler, ILogger } from "@defenter/common-ts/types";
+
+// Mock error handler for tests
+class TestErrorHandler implements IErrorHandler {
+    showError(message: string): void {
+        // Silent in tests
+    }
+}
+
+// Mock logger for tests
+class TestLogger implements ILogger {
+    info(message: string): void {}
+    warn(message: string): void {}
+    error(message: string, error?: any): void {}
+    debug(message: string): void {}
+}
 
 /**
  * E2E test for uninstall flow - tests real CursorHooksMonitor class with real file system
@@ -17,12 +33,16 @@ import { CursorHooksMonitor } from "../index";
 describe("CursorHooksMonitor - E2E Uninstall Flow", () => {
     let testHooksDir: string;
     let testHooksFile: string;
+    let errorHandler: IErrorHandler;
+    let logger: ILogger;
 
     beforeEach(async () => {
         // Create temporary test directory with unique timestamp to avoid conflicts
         testHooksDir = join(tmpdir(), `test-cursor-hooks-${Date.now()}-${Math.random().toString(36).substring(7)}`);
         await fs.mkdir(testHooksDir, { recursive: true });
         testHooksFile = join(testHooksDir, "hooks.json");
+        errorHandler = new TestErrorHandler();
+        logger = new TestLogger();
     });
 
     afterEach(async () => {
@@ -63,7 +83,7 @@ describe("CursorHooksMonitor - E2E Uninstall Flow", () => {
         expect(beforeConfig.hooks.beforeSubmitPrompt).toHaveLength(1);
 
         // Test: Call unregisterHook (without extensionPath, simulating uninstall)
-        const monitor = new CursorHooksMonitor(hooksFile);
+        const monitor = new CursorHooksMonitor(hooksFile, "", errorHandler, logger);
         await monitor.unregisterHook();
 
         // Verify: Defenter hooks should be removed, others preserved
@@ -84,7 +104,7 @@ describe("CursorHooksMonitor - E2E Uninstall Flow", () => {
     it("should handle non-existent hooks.json file gracefully", async () => {
         const nonExistentFile = join(testHooksDir, "non-existent.json");
 
-        const monitor = new CursorHooksMonitor(nonExistentFile);
+        const monitor = new CursorHooksMonitor(nonExistentFile, "", errorHandler, logger);
 
         // Should not throw when file doesn't exist
         await expect(monitor.unregisterHook()).resolves.not.toThrow();
@@ -102,7 +122,7 @@ describe("CursorHooksMonitor - E2E Uninstall Flow", () => {
 
         await fs.writeFile(hooksFile, JSON.stringify(testHooksConfig, null, 2), "utf-8");
 
-        const monitor = new CursorHooksMonitor(hooksFile);
+        const monitor = new CursorHooksMonitor(hooksFile, "", errorHandler, logger);
         await monitor.unregisterHook();
 
         // Other hooks should remain unchanged
@@ -149,7 +169,7 @@ describe("CursorHooksMonitor - E2E Uninstall Flow", () => {
 
         await fs.writeFile(hooksFile, JSON.stringify(testHooksConfig, null, 2), "utf-8");
 
-        const monitor = new CursorHooksMonitor(hooksFile);
+        const monitor = new CursorHooksMonitor(hooksFile, "", errorHandler, logger);
         await monitor.unregisterHook();
 
         // All Defenter hooks (matching current OS) should be removed regardless of path format
@@ -171,7 +191,7 @@ describe("CursorHooksMonitor - E2E Uninstall Flow", () => {
 
         await fs.writeFile(hooksFile, JSON.stringify(testHooksConfig, null, 2), "utf-8");
 
-        const monitor = new CursorHooksMonitor(hooksFile);
+        const monitor = new CursorHooksMonitor(hooksFile, "", errorHandler, logger);
         await monitor.unregisterHook();
 
         // Should not throw and structure should remain
@@ -198,7 +218,7 @@ describe("CursorHooksMonitor - E2E Uninstall Flow", () => {
 
         await fs.writeFile(hooksFile, JSON.stringify(testHooksConfig, null, 2), "utf-8");
 
-        const monitor = new CursorHooksMonitor(hooksFile);
+        const monitor = new CursorHooksMonitor(hooksFile, "", errorHandler, logger);
         await monitor.unregisterHook();
 
         // All Defenter hooks removed, other hook preserved
@@ -220,7 +240,7 @@ describe("CursorHooksMonitor - E2E Uninstall Flow", () => {
 
         await fs.writeFile(hooksFile, JSON.stringify(testHooksConfig, null, 2), "utf-8");
 
-        const monitor = new CursorHooksMonitor(hooksFile);
+        const monitor = new CursorHooksMonitor(hooksFile, "", errorHandler, logger);
         await monitor.unregisterHook();
 
         // Hook with extra properties should be preserved
@@ -246,7 +266,7 @@ describe("CursorHooksMonitor - E2E Uninstall Flow", () => {
 
         await fs.writeFile(hooksFile, JSON.stringify(testHooksConfig, null, 2), "utf-8");
 
-        const monitor = new CursorHooksMonitor(hooksFile);
+        const monitor = new CursorHooksMonitor(hooksFile, "", errorHandler, logger);
         await monitor.unregisterHook();
 
         // Version field should be preserved
@@ -273,7 +293,7 @@ describe("CursorHooksMonitor - E2E Uninstall Flow", () => {
 
         await fs.writeFile(hooksFile, JSON.stringify(testHooksConfig, null, 2), "utf-8");
 
-        const monitor = new CursorHooksMonitor(hooksFile);
+        const monitor = new CursorHooksMonitor(hooksFile, "", errorHandler, logger);
         await monitor.unregisterHook();
 
         const afterContent = await fs.readFile(hooksFile, "utf-8");
@@ -333,7 +353,7 @@ describe("CursorHooksMonitor - E2E Uninstall Flow", () => {
 
         await fs.writeFile(hooksFile, JSON.stringify(testHooksConfig, null, 2), "utf-8");
 
-        const monitor = new CursorHooksMonitor(hooksFile);
+        const monitor = new CursorHooksMonitor(hooksFile, "", errorHandler, logger);
         await monitor.unregisterHook();
 
         // Defenter hooks removed from all types, others preserved
@@ -370,7 +390,7 @@ describe("CursorHooksMonitor - E2E Uninstall Flow", () => {
 
         await fs.writeFile(hooksFile, JSON.stringify(testHooksConfig, null, 2), "utf-8");
 
-        const monitor = new CursorHooksMonitor(hooksFile);
+        const monitor = new CursorHooksMonitor(hooksFile, "", errorHandler, logger);
         await monitor.unregisterHook();
 
         // Only exact match should be removed
@@ -389,7 +409,7 @@ describe("CursorHooksMonitor - E2E Uninstall Flow", () => {
         const hooksFile = join(testHooksDir, "unwritable", "hooks.json");
 
         // Create monitor with path in non-existent directory
-        const monitor = new CursorHooksMonitor(hooksFile);
+        const monitor = new CursorHooksMonitor(hooksFile, "", errorHandler, logger);
 
         // Should not throw even if file operations fail
         await expect(monitor.unregisterHook()).resolves.not.toThrow();
@@ -423,9 +443,8 @@ describe("CursorHooksMonitor - E2E Uninstall Flow", () => {
         expect(beforeConfig.hooks.beforeShellExecution[0].command).toContain("0.0.1");
 
         // Simulate upgrade to new version (0.0.2)
-        const monitor = new CursorHooksMonitor(hooksFile);
-        // Set extensionPath to new version path
-        (monitor as any).extensionPath = "/path/to/defenter-0.0.2";
+        const newExtensionPath = "/path/to/defenter-0.0.2";
+        const monitor = new CursorHooksMonitor(hooksFile, newExtensionPath, errorHandler, logger);
         const newScriptPath = "/path/to/defenter-0.0.2/scripts/cursor/hooks/defenter-cursor-hook.sh";
 
         // Call registerHooks which should cleanup old version and register new one
