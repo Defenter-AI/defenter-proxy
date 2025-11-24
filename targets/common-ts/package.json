@@ -18,9 +18,9 @@
       "types": "./dist/watcher/index.d.ts",
       "default": "./dist/watcher/index.js"
     },
-    "./monitors/configurationMonitor": {
-      "types": "./dist/monitors/configurationMonitor/index.d.ts",
-      "default": "./dist/monitors/configurationMonitor/index.js"
+    "./mcp/monitor": {
+      "types": "./dist/mcp/monitor/index.d.ts",
+      "default": "./dist/mcp/monitor/index.js"
     },
     "./hooks/monitor": {
       "types": "./dist/hooks/monitor/index.d.ts",

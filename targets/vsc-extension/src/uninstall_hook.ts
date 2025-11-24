@@ -1,4 +1,4 @@
-import { ConfigurationMonitor } from "@defenter/common-ts/monitors/configurationMonitor";
+import { ConfigurationMonitor } from "@defenter/common-ts/mcp/monitor";
 import { CursorHooksMonitor } from "@defenter/common-ts/hooks/monitor";
 import { IErrorHandler, ILogger } from "@defenter/common-ts/types";
 import { constants, promises as fs } from "fs";

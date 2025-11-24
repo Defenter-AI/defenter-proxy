@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { ConfigurationMonitor } from "@defenter/common-ts/monitors/configurationMonitor";
+import { ConfigurationMonitor } from "@defenter/common-ts/mcp/monitor";
 import { CursorHooksMonitor } from "@defenter/common-ts/hooks/monitor";
 import { UvRunner } from "./uvRunner";
 
