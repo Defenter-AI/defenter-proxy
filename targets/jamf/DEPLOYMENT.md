@@ -80,6 +80,35 @@ sudo launchctl unload /Library/LaunchDaemons/ai.defenter.jamf.plist
 sudo launchctl list | grep ai.defenter.jamf
 ```
 
+## Permissions
+
+The Defenter Jamf daemon **requires root privileges** to monitor configurations and hooks across all user accounts.
+
+### Why Root is Required
+
+The daemon monitors MCP configurations and Cursor hooks at multiple levels across all users:
+
+**MCP Configurations:**
+- Read Cursor configuration files from all users' home directories
+- Parse workspace storage: `~/Library/Application Support/Cursor/User/globalStorage/storage.json` for each user
+- Monitor workspace-specific configs: `<workspace>/.cursor/mcp.json`, `<workspace>/mcp.json`
+- Monitor user-specific configs: `~/.cursor/mcp.json`, `~/Library/Application Support/Cursor/User/mcp.json`
+
+**Cursor Hooks:**
+Per [Cursor's hooks documentation](https://cursor.com/docs/agent/hooks#configuration), hooks can be defined at three levels:
+1. **Project-level**: `<workspace>/.cursor/hooks.json` (each workspace gets its own workspace roots)
+2. **User-level**: `~/.cursor/hooks.json` (each user gets all their workspace roots)
+3. **Global/Enterprise-level**: `/Library/Application Support/Cursor/hooks.json` (gets all workspace roots from all users)
+
+The daemon automatically discovers and monitors hooks at all three levels across all macOS users with Cursor installed.
+
+### Security Considerations
+
+- The daemon only reads/writes Cursor configuration files and does not access other user data
+- All file operations are logged to `/usr/local/defenter/jamf.log`
+- Permission errors for inaccessible users are logged but do not stop monitoring of other users
+- The launchd daemon is configured to run as `root` user with `wheel` group
+
 ## Runtime Path Resolution
 
 ### 1. Entry Point (`defenter-jamf.sh`)

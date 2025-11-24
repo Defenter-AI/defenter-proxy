@@ -1,6 +1,7 @@
 import vscode from "vscode";
 import { ConfigurationMonitor } from "@defenter/common-ts/monitors/configurationMonitor";
-import { CursorHooksMonitor } from "@defenter/common-ts/monitors/cursorHooksMonitor";
+import { CursorHooksMonitor } from "@defenter/common-ts/hooks/monitor";
+import { initialize as initializeCursorHooks } from "@defenter/common-ts/hooks/initialize";
 import { VscodeConfigDiscoverer } from "./configsDiscoverer";
 import { UvRunner } from "./uvRunner";
 import { AuditTrailView } from "./auditTrail";
@@ -14,6 +15,7 @@ import {
 } from "./utils";
 import { reportLifecycleEvent } from "./api";
 import { IErrorHandler, ILogger } from "@defenter/common-ts/types";
+import { getCursorUserHooksPath } from "@defenter/common-ts/utils";
 
 class VscodeLoggerAdapter implements ILogger {
     debug(message: string, ...args: any[]): void {
@@ -74,7 +76,6 @@ const performInitialization = async (
         cursorHooksMonitor:
             ideType === "cursor"
                 ? new CursorHooksMonitor(
-                      undefined,
                       _state.context.extensionPath,
                       errorHandler,
                       logger
@@ -98,9 +99,13 @@ const performInitialization = async (
     await state.configMonitor.startMonitoring(state.uvRunner, discoverer);
 
     // Start Cursor hooks monitoring
-    const workspaceRoots =
-        vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath) || [];
-    await state.cursorHooksMonitor?.startMonitoring(state.uvRunner, workspaceRoots);
+    if (state.cursorHooksMonitor) {
+        const hooksFilePath = getCursorUserHooksPath();
+        const workspaceRoots =
+            vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath) || [];
+        await initializeCursorHooks(state.uvRunner, workspaceRoots, logger);
+        await state.cursorHooksMonitor.startMonitoring([hooksFilePath]);
+    }
 
     const auditTrailView = new AuditTrailView(state.context);
     await auditTrailView.initialize();

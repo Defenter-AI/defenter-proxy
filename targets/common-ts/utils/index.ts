@@ -434,3 +434,10 @@ export const samePath = (a: string, b: string): boolean => {
 
 export { getIdeSystemConfigPaths } from "./ideConfigPaths";
 export { getUvCommand } from "./uvCommand";
+export {
+    listCursorUsers,
+    getCursorGlobalHooksPath,
+    getCursorUserHooksPath,
+    parseCursorWorkspaces,
+} from "./cursor";
+export { OSUser } from "../types";

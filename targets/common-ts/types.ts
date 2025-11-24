@@ -49,3 +49,8 @@ export interface ILogger {
     warn(message: string, ...args: any[]): void;
     error(message: string, error?: any): void;
 }
+
+export interface OSUser {
+    username: string;
+    homeDir: string;
+}

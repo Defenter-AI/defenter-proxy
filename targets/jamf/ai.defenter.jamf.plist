@@ -5,6 +5,12 @@
     <key>Label</key>
     <string>ai.defenter.jamf</string>
     
+    <key>UserName</key>
+    <string>root</string>
+    
+    <key>GroupName</key>
+    <string>wheel</string>
+    
     <key>ProgramArguments</key>
     <array>
         <string>/usr/local/defenter/defenter-jamf.sh</string>

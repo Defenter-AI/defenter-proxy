@@ -1,9 +1,10 @@
 import { ConfigurationMonitor } from "@defenter/common-ts/monitors/configurationMonitor";
-import { CursorHooksMonitor } from "@defenter/common-ts/monitors/cursorHooksMonitor";
+import { CursorHooksMonitor } from "@defenter/common-ts/hooks/monitor";
 import { IErrorHandler, ILogger } from "@defenter/common-ts/types";
 import { constants, promises as fs } from "fs";
 import { detectIDEFromScriptPath } from "./utils";
 import { reportLifecycleEvent } from "./api";
+import { getCursorUserHooksPath } from "@defenter/common-ts/utils";
 
 /**
  * Simple console error handler for uninstall hook
@@ -106,14 +107,14 @@ async function main() {
             case "cursor":
                 console.log("\nCleaning up Cursor hooks...");
                 try {
-                    // Use default hooks file path and current directory as an extension path
+                    const hooksFilePath = getCursorUserHooksPath();
+
                     const cursorHooksMonitor = new CursorHooksMonitor(
-                        undefined, // Use default hooks file path
                         __dirname, // Extension path (script directory)
                         errorHandler,
                         logger
                     );
-                    await cursorHooksMonitor.unregisterHook();
+                    await cursorHooksMonitor.unregisterHook([hooksFilePath]);
                     console.log("✅ Cursor hooks unregistered");
                 } catch (error: any) {
                     console.error("Failed to unregister Cursor hooks:", error.message);

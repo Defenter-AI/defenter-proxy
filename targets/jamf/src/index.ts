@@ -1,14 +1,13 @@
 import { ConfigurationMonitor } from "@defenter/common-ts/monitors/configurationMonitor";
-import { CursorHooksMonitor } from "@defenter/common-ts/monitors/cursorHooksMonitor";
+import { CursorHooksMonitor } from "@defenter/common-ts/hooks/monitor";
+import { initialize as initializeCursorHooks } from "@defenter/common-ts/hooks/initialize";
 import { ILogger } from "@defenter/common-ts/types";
 import { JamfConfigDiscoverer } from "./configDiscoverer";
-import { parseCursorWorkspaces } from "@defenter/common-ts/discovery/cursorStorageParser";
+import { discoverAllHooksFiles } from "./hooksDiscoverer";
 import { JamfErrorHandler } from "./errorHandler";
 import { JamfUvRunner } from "./uvRunner";
 import { daemonize } from "./daemon";
 import { VERSION } from "./version";
-import { homedir } from "os";
-import { join } from "path";
 
 /**
  * Console logger for jamf
@@ -49,18 +48,21 @@ async function main() {
     await configMonitor.startMonitoring(uvRunner, discoverer);
 
     // Start Cursor hooks monitoring
-    const workspaceRoots = await parseCursorWorkspaces();
-    const extensionPath = process.env.DEFENTER_EXTENSION_PATH || __dirname;
-    const hooksMonitor = new CursorHooksMonitor(
-        join(homedir(), ".cursor", "hooks.json"),
-        extensionPath,
-        errorHandler,
-        logger
-    );
-    await hooksMonitor.startMonitoring(uvRunner, workspaceRoots);
+    const hooksConfig = await discoverAllHooksFiles();
 
-    console.log("Jamf monitoring started successfully");
-    console.log(`Monitoring ${workspaceRoots.length} workspace(s)`);
+    // Initialize Cursor hooks API for each unique set of workspace roots
+    await Promise.allSettled(
+        Array.from(hooksConfig.values()).map(workspaceRoots =>
+            initializeCursorHooks(uvRunner, workspaceRoots, logger)
+        )
+    );
+
+    // Start monitoring all hooks files
+    const extensionPath = process.env.DEFENTER_EXTENSION_PATH || __dirname;
+    const hooksMonitor = new CursorHooksMonitor(extensionPath, errorHandler, logger);
+    await hooksMonitor.startMonitoring(Array.from(hooksConfig.keys()));
+
+    logger.info("Hooks monitoring started successfully");
 
     // Keep process alive
     await new Promise(() => {});
