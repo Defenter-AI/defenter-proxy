@@ -1,0 +1,13 @@
+{
+  "name": "defenter-local",
+  "owner": {
+    "name": "Defenter"
+  },
+  "plugins": [
+    {
+      "name": "defenter",
+      "source": "./package",
+      "description": "Automatic security wrapping for all MCP servers with real-time monitoring and policy enforcement"
+    }
+  ]
+}

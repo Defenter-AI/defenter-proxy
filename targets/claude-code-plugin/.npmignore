@@ -1,0 +1,20 @@
+# Development files only
+src/
+tsconfig.json
+jest.config.js
+**/__tests__/
+*.test.ts
+*.test.js
+.DS_Store
+*.log
+node_modules/
+
+# Keep in distribution:
+# - dist/
+# - .claude-plugin/
+# - hooks/
+# - scripts/
+# - package.json
+# - README.md
+# - LICENSE
+

@@ -5,7 +5,8 @@
   "workspaces": [
     "common-ts",
     "vsc-extension",
-    "jamf"
+    "jamf",
+    "claude-code-plugin"
   ],
   "scripts": {
     "clean:build": "node scripts/clean-build.js"

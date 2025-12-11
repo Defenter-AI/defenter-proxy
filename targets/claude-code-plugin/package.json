@@ -1,0 +1,45 @@
+{
+  "name": "@defenter/claude-code-plugin",
+  "displayName": "Defenter",
+  "description": "Real-time semantic security for AI coding agents and MCP tools",
+  "version": "0.0.96",
+  "main": "dist/launcher.js",
+  "bin": {
+    "defenter-monitor": "./dist/launcher.js"
+  },
+  "files": [
+    "dist/",
+    ".claude-plugin/",
+    "hooks/",
+    "scripts/",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "webpack",
+    "watch": "webpack --watch",
+    "clean": "rm -rf dist",
+    "prepare": "npm run build",
+    "package": "npm run build && npm pack"
+  },
+  "keywords": [
+    "mcp",
+    "security",
+    "claude-code",
+    "proxy",
+    "monitoring"
+  ],
+  "author": {
+    "name": "Defenter",
+    "email": "support@defenter.ai"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://www.defenter.ai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Defenter-AI/defenter-proxy"
+  },
+  "devDependencies": {
+    "@defenter/common-ts": "*"
+  }
+}

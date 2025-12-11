@@ -1,6 +1,4 @@
-"""
-Claude Code-specific output formatting
-"""
+"""Claude Code output formatting using hookSpecificOutput structure"""
 
 import json
 from typing import Optional
@@ -10,33 +8,43 @@ from ide_tools.common.hooks.types import OutputFormat
 
 def claude_code_output_formatter(hook_type: str, allowed: bool, user_msg: Optional[str],
                                  agent_msg: Optional[str]) -> str:
-    """
-    Format output for Claude Code
-    
-    Args:
-        hook_type: "permission" or "continue"
-        allowed: True for allow/continue, False for deny/block
-        user_msg: Message for user
-        agent_msg: Message for agent/logs
-    
-    Returns:
-        JSON string in Claude Code format
-    """
+    """Format hook output: permission (PreToolUse), permission_request, or continue (UserPromptSubmit)"""
     if hook_type == "permission":
-        result = {"permissionDecision": "allow" if allowed else "deny"}
+        hook_output = {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "allow" if allowed else "deny"
+        }
         if user_msg or agent_msg:
-            result["permissionDecisionReason"] = agent_msg or user_msg
-    else:  # continue (UserPromptSubmit)
-        result = {}
+            hook_output["permissionDecisionReason"] = agent_msg or user_msg
+        result = {"hookSpecificOutput": hook_output}
+
+    elif hook_type == "permission_request":
+        decision = {"behavior": "allow" if allowed else "deny"}
+        if not allowed and (user_msg or agent_msg):
+            decision["message"] = agent_msg or user_msg
+        result = {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": decision}}
+
+    else:
         if not allowed:
-            result["decision"] = "block"
-            result["reason"] = agent_msg or user_msg or "Blocked by security policy"
-        # If allowed, return empty dict (allows prompt)
+            result = {
+                "decision": "block",
+                "reason": agent_msg or user_msg or "Blocked by security policy",
+                "hookSpecificOutput": {"hookEventName": "UserPromptSubmit"}
+            }
+        else:
+            result = {}
 
     return json.dumps(result)
 
 
-# Claude Code-specific output format configuration
+def format_permission_request(allowed: bool, message: Optional[str] = None) -> str:
+    """Format PermissionRequest hook output"""
+    decision = {"behavior": "allow" if allowed else "deny"}
+    if not allowed and message:
+        decision["message"] = message
+    return json.dumps({"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": decision}})
+
+
 CLAUDE_CODE_OUTPUT = OutputFormat(
     allow_exit_code=0,
     deny_exit_code=0,  # Claude Code uses structured output, not exit codes

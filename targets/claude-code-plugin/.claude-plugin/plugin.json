@@ -1,0 +1,21 @@
+{
+  "name": "defenter",
+  "version": "0.0.96",
+  "description": "Automatic security wrapping for all MCP servers with real-time monitoring and policy enforcement",
+  "author": {
+    "name": "Defenter",
+    "email": "support@defenter.ai"
+  },
+  "homepage": "https://www.defenter.ai",
+  "repository": "https://github.com/Defenter-AI/defenter-proxy",
+  "license": "Apache-2.0",
+  "keywords": [
+    "mcp",
+    "security",
+    "proxy",
+    "monitoring",
+    "audit",
+    "redaction",
+    "policy-enforcement"
+  ]
+}

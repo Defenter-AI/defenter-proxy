@@ -15,6 +15,7 @@ class BuildCleaner {
         this.extensionRoot = path.join(this.targetsRoot, "vsc-extension");
         this.jamfRoot = path.join(this.targetsRoot, "jamf");
         this.commonTsRoot = path.join(this.targetsRoot, "common-ts");
+        this.claudeCodePluginRoot = path.join(this.targetsRoot, "claude-code-plugin");
         this.srcRoot = path.join(this.projectRoot, "src");
     }
 
@@ -45,6 +46,8 @@ class BuildCleaner {
             path.join(this.extensionRoot, "proxy-bundled"),
             path.join(this.jamfRoot, "dist"),
             path.join(this.commonTsRoot, "dist"),
+            path.join(this.claudeCodePluginRoot, "dist"),
+            ...this.globSync(path.join(this.claudeCodePluginRoot, "*.tgz")),
             ...this.globSync(path.join(this.extensionRoot, "*.vsix")),
         ];
 
@@ -122,6 +125,7 @@ class BuildCleaner {
             path.join(this.extensionRoot, "node_modules"),
             path.join(this.jamfRoot, "node_modules"),
             path.join(this.commonTsRoot, "node_modules"),
+            path.join(this.claudeCodePluginRoot, "node_modules"),
         ];
 
         for (const filePath of nodeModulesPaths) {
