@@ -66,6 +66,7 @@ def route_claude_code_hook(logger: MCPLogger, audit_logger: AuditTrailLogger, st
                 logger=logger,
                 audit_logger=audit_logger,
                 event_id=event_id,
+                prompt_id=prompt_id,
                 cwd=cwd,
                 server_name=CLAUDE_CODE_CONFIG.server_name,
                 client_name="claude-code",

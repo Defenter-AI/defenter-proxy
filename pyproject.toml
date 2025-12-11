@@ -45,7 +45,8 @@ packages = [
     "ide_tools",
     "ide_tools.common",
     "ide_tools.common.hooks",
-    "ide_tools.cursor"
+    "ide_tools.cursor",
+    "ide_tools.claude_code"
 ]
 py-modules = ["main"]
 

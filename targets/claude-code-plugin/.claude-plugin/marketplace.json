@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "defenter",
-      "source": "./package",
+      "source": "./",
       "description": "Automatic security wrapping for all MCP servers with real-time monitoring and policy enforcement"
     }
   ]
