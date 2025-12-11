@@ -1,37 +1,10 @@
 import { ConfigurationMonitor } from "@defenter/common-ts/mcp/monitor";
 import { CursorHooksMonitor } from "@defenter/common-ts/hooks/monitor";
-import { IErrorHandler, ILogger } from "@defenter/common-ts/types";
-import { constants, promises as fs } from "fs";
+import { ConsoleErrorHandler, ConsoleLogger } from "@defenter/common-ts/console";
+import { fileExists, getCursorUserHooksPath } from "@defenter/common-ts/utils";
+import { promises as fs } from "fs";
 import { detectIDEFromScriptPath } from "./utils";
 import { reportLifecycleEvent } from "./api";
-import { getCursorUserHooksPath } from "@defenter/common-ts/utils";
-
-/**
- * Simple console error handler for uninstall hook
- */
-class ConsoleErrorHandler implements IErrorHandler {
-    showError(message: string): void {
-        console.error(message);
-    }
-}
-
-/**
- * Simple console logger for uninstall hook
- */
-class ConsoleLogger implements ILogger {
-    debug(message: string, ...args: any[]): void {
-        console.log(`[DEBUG] ${message}`, ...args);
-    }
-    info(message: string, ...args: any[]): void {
-        console.log(`[INFO] ${message}`, ...args);
-    }
-    warn(message: string, ...args: any[]): void {
-        console.warn(`[WARN] ${message}`, ...args);
-    }
-    error(message: string, error?: any): void {
-        console.error(`[ERROR] ${message}`, error);
-    }
-}
 
 /**
  * Uninstall hook script for Defenter
@@ -137,18 +110,6 @@ async function main() {
     } catch (error) {
         console.error("❌ Uninstall cleanup failed:", error);
         process.exit(1);
-    }
-}
-
-/**
- * Check if a file exists
- */
-async function fileExists(filePath: string): Promise<boolean> {
-    try {
-        await fs.access(filePath, constants.F_OK);
-        return true;
-    } catch {
-        return false;
     }
 }
 

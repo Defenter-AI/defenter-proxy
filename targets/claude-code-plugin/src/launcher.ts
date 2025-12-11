@@ -1,5 +1,10 @@
 #!/usr/bin/env node
+import { join } from "path";
+import { homedir } from "os";
 import { ConfigurationMonitor } from "@defenter/common-ts/mcp/monitor";
+import { ClaudeCodeHooksMonitor } from "@defenter/common-ts/hooks/monitor";
+import { initialize as initializeHooks } from "@defenter/common-ts/hooks/initialize";
+import { getClaudeGlobalSettingsPath, getClaudeUserSettingsPath, parseClaudeProjects } from "@defenter/common-ts/utils";
 import { ClaudeCodeConfigDiscoverer } from "./configDiscoverer";
 import { ClaudeCodeUvRunner } from "./uvRunner";
 import { ClaudeCodeLogger } from "./logger";
@@ -53,6 +58,21 @@ async function main() {
         await uvRunner.initialize();
         const configMonitor = new ConfigurationMonitor(errorHandler, logger, "claude");
         await configMonitor.startMonitoring(uvRunner, discoverer);
+
+        // Initialize hooks with backend
+        const workspaceRoots = await parseClaudeProjects(homedir());
+        await initializeHooks(uvRunner, workspaceRoots, logger, "claude-code");
+
+        // Start hooks monitoring to re-register hooks when settings.json changes
+        const hooksJsonPath = join(process.env.CLAUDE_PLUGIN_ROOT!, "hooks", "hooks.json");
+        const hooksMonitor = new ClaudeCodeHooksMonitor(hooksJsonPath, errorHandler, logger);
+
+        const settingsFiles = [getClaudeUserSettingsPath()];
+        const globalSettings = getClaudeGlobalSettingsPath();
+        if (globalSettings) {
+            settingsFiles.push(globalSettings);
+        }
+        await hooksMonitor.startMonitoring(settingsFiles);
 
         console.log("Daemon running");
         await new Promise(() => {});

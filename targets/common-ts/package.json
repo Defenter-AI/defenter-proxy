@@ -29,6 +29,18 @@
     "./hooks/initialize": {
       "types": "./dist/hooks/initialize.d.ts",
       "default": "./dist/hooks/initialize.js"
+    },
+    "./api": {
+      "types": "./dist/api.d.ts",
+      "default": "./dist/api.js"
+    },
+    "./console": {
+      "types": "./dist/console.d.ts",
+      "default": "./dist/console.js"
+    },
+    "./uvRunner": {
+      "types": "./dist/uvRunner.d.ts",
+      "default": "./dist/uvRunner.js"
     }
   },
   "scripts": {

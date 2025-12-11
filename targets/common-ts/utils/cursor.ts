@@ -1,68 +1,29 @@
 import { promises as fs } from "fs";
 import { join, resolve } from "path";
-import { fileExists, mapOS } from "./index";
+import { listIdeUsers, mapOS } from "./index";
 import { OSUser } from "../types";
 import { homedir } from "os";
 
 /**
- * List all macOS users who have Cursor installed
- * Looks for users in /Users with a .cursor directory
+ * List all users who have Cursor installed
  */
 export async function listCursorUsers(): Promise<OSUser[]> {
-    const users: OSUser[] = [];
-
-    const platform = mapOS();
-    switch (platform) {
-        case "macos": {
-            const usersDir = "/Users";
-
-            try {
-                const entries = (await fs.readdir(usersDir)).filter(
-                    // Skip system directories
-                    username => !["Shared", "Guest", ".localized"].includes(username)
-                );
-
-                for (const username of entries) {
-                    const homeDir = join(usersDir, username);
-                    const cursorDir = join(homeDir, ".cursor");
-
-                    try {
-                        if (await fileExists(cursorDir)) {
-                            users.push({ username, homeDir });
-                        }
-                    } catch (error: any) {
-                        // Skip users we can't access
-                        if (error.code === "EACCES" || error.code === "EPERM") {
-                            continue;
-                        }
-                        throw error;
-                    }
-                }
-            } catch (error) {
-                // do nothing
-            }
-            break;
-        }
-        default:
-            console.warn(`listCursorUsers: Unsupported platform: ${platform}`);
-    }
-
-    return users;
+    return listIdeUsers(".cursor");
 }
 
 /**
- * Get the global/enterprise hooks file path for macOS
+ * Get the global/enterprise hooks file path for Cursor
  */
 export function getCursorGlobalHooksPath(): string | undefined {
     const platform = mapOS();
     switch (platform) {
-        case "macos": {
+        case "macos":
             return "/Library/Application Support/Cursor/hooks.json";
-        }
+        case "windows":
+            return "C:\\ProgramData\\Cursor\\hooks.json";
         default:
-            console.warn(`getGlobalHooksPath: Unsupported platform: ${platform}`);
+            return undefined;
     }
-    return undefined;
 }
 
 export function getCursorUserHooksPath(): string {

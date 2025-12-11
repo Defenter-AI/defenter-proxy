@@ -103,7 +103,7 @@ const performInitialization = async (
         const hooksFilePath = getCursorUserHooksPath();
         const workspaceRoots =
             vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath) || [];
-        await initializeCursorHooks(state.uvRunner, workspaceRoots, logger);
+        await initializeCursorHooks(state.uvRunner, workspaceRoots, logger, "cursor");
         await state.cursorHooksMonitor.startMonitoring([hooksFilePath]);
     }
 

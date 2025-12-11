@@ -1,7 +1,7 @@
 import { basename, dirname, join, normalize } from "path";
 import { promises as fs } from "fs";
-import { HooksConfig } from "./types";
-import { fileExists, mapOS, samePath, updateJsoncFile } from "@defenter/common-ts/utils";
+import { ClaudeCodeHooksConfig, ClaudeCodeSettingsConfig, CursorHooksConfig } from "./types";
+import { fileExists, mapOS, parseJsonc, samePath, updateJsoncFile } from "@defenter/common-ts/utils";
 import { FileWatcher } from "@defenter/common-ts/watcher";
 import { IErrorHandler, ILogger } from "@defenter/common-ts/types";
 
@@ -103,7 +103,7 @@ export class CursorHooksMonitor {
 
                 const scriptsMap = await this.getScriptsMap();
 
-                await updateJsoncFile(hooksFilePath, (config: HooksConfig) => {
+                await updateJsoncFile(hooksFilePath, (config: CursorHooksConfig) => {
                     for (const [
                         hookName,
                         { path: scriptPath, name: scriptName },
@@ -210,7 +210,7 @@ export class CursorHooksMonitor {
 
         try {
             // Update hooks.json while preserving comments
-            await updateJsoncFile(hooksFilePath, (config: HooksConfig) => {
+            await updateJsoncFile(hooksFilePath, (config: CursorHooksConfig) => {
                 // Ensure proper structure exists
                 if (!config.version) {
                     config.version = 1;
@@ -273,5 +273,217 @@ export class CursorHooksMonitor {
         return mapOS() === "windows" && scriptPath.includes(" ")
             ? `"${scriptPath}"`
             : scriptPath;
+    }
+}
+
+/**
+ * Claude Code hooks monitor
+ * Manages Claude Code's settings.json hooks section registration and monitoring
+ */
+export class ClaudeCodeHooksMonitor {
+    private readonly hooksJsonPath: string;
+    private readonly errorHandler: IErrorHandler;
+    private readonly logger: ILogger;
+    private fileWatcher: FileWatcher;
+    private isMonitoring: boolean = false;
+    private cachedHooksConfig: ClaudeCodeHooksConfig | undefined;
+
+    constructor(
+        hooksJsonPath: string,
+        errorHandler: IErrorHandler,
+        logger: ILogger
+    ) {
+        this.hooksJsonPath = hooksJsonPath;
+        this.errorHandler = errorHandler;
+        this.logger = logger;
+
+        this.fileWatcher = new FileWatcher({
+            onFileProcess: async (filePath: string) => {
+                this.logger.info(
+                    `Claude Code Hooks: ${filePath} changed, re-registering hooks`
+                );
+                await this.registerHooks(filePath);
+            },
+            onFileDelete: async (filePath: string) => {
+                this.logger.info(
+                    `Claude Code Hooks: ${filePath} deleted, recreating with hooks`
+                );
+                await this.registerHooks(filePath);
+            },
+            logger: this.logger,
+        });
+    }
+
+    /**
+     * Start monitoring Claude Code settings.json files
+     * @param settingsFilePaths Array of settings file paths to monitor
+     */
+    async startMonitoring(settingsFilePaths: string[]): Promise<void> {
+        if (this.isMonitoring) {
+            this.logger.debug("Claude Code Hooks: already monitoring");
+            return;
+        }
+
+        this.isMonitoring = true;
+
+        try {
+            this.logger.info(
+                `Claude Code Hooks: Starting monitoring for ${settingsFilePaths.length} settings file(s)`
+            );
+
+            for (const settingsPath of settingsFilePaths) {
+                this.logger.info(`Claude Code Hooks: Processing ${settingsPath}`);
+                await this.registerHooks(settingsPath);
+            }
+
+            await this.fileWatcher.startWatching(settingsFilePaths);
+
+            this.logger.info("Claude Code Hooks: Monitoring started successfully");
+        } catch (error) {
+            this.logger.error("Claude Code Hooks: Failed to start hooks monitoring", error);
+            await this.stopMonitoring();
+        }
+    }
+
+    async stopMonitoring(): Promise<void> {
+        if (!this.isMonitoring) {
+            return;
+        }
+
+        this.logger.info("Claude Code Hooks: Stopping hooks monitoring");
+
+        await this.fileWatcher.stopWatching();
+        this.fileWatcher.cleanupAllState();
+
+        this.isMonitoring = false;
+        this.logger.info("Claude Code Hooks: Hooks monitoring stopped");
+    }
+
+    /**
+     * Unregister hooks from specific settings files
+     */
+    async unregisterHook(settingsFilePaths: string[]): Promise<void> {
+        const hooksConfig = await this.getHooksConfig();
+        if (!hooksConfig) {
+            return;
+        }
+
+        for (const settingsPath of settingsFilePaths) {
+            try {
+                if (!(await fileExists(settingsPath))) {
+                    continue;
+                }
+
+                await updateJsoncFile(settingsPath, (config: ClaudeCodeSettingsConfig) => {
+                    if (!config.hooks) {
+                        return config;
+                    }
+
+                    for (const hookName of Object.keys(hooksConfig.hooks)) {
+                        if (!config.hooks[hookName]) {
+                            continue;
+                        }
+
+                        config.hooks[hookName] = config.hooks[hookName].filter(
+                            entry => !this.isDefenterHookEntry(entry)
+                        );
+
+                        if (!config.hooks[hookName].length) {
+                            delete config.hooks[hookName];
+                        }
+                    }
+
+                    if (Object.keys(config.hooks).length === 0) {
+                        delete config.hooks;
+                    }
+
+                    return config;
+                });
+
+                this.fileWatcher.recordWrite(settingsPath);
+
+                this.logger.info(
+                    `Claude Code Hooks: Unregistered hooks from ${settingsPath}`
+                );
+            } catch (error) {
+                this.logger.error(
+                    `Claude Code Hooks: Failed to unregister hook from ${settingsPath}`,
+                    error
+                );
+            }
+        }
+    }
+
+    private isDefenterHookEntry(entry: any): boolean {
+        return entry.hooks?.some(
+            (h: any) =>
+                h.type === "command" &&
+                (h.command?.includes("defenter-proxy") || h.command?.includes("launcher.js"))
+        );
+    }
+
+    private async getHooksConfig(): Promise<ClaudeCodeHooksConfig | undefined> {
+        if (this.cachedHooksConfig) {
+            return this.cachedHooksConfig;
+        }
+
+        try {
+            if (!(await fileExists(this.hooksJsonPath))) {
+                this.logger.error(
+                    `Claude Code Hooks: hooks.json not found at ${this.hooksJsonPath}`
+                );
+                return undefined;
+            }
+
+            const content = await fs.readFile(this.hooksJsonPath, "utf8");
+            this.cachedHooksConfig = parseJsonc(content) as ClaudeCodeHooksConfig;
+            return this.cachedHooksConfig;
+        } catch (error) {
+            this.logger.error("Claude Code Hooks: Failed to read hooks.json", error);
+            return undefined;
+        }
+    }
+
+    private async registerHooks(settingsPath: string): Promise<void> {
+        const hooksConfig = await this.getHooksConfig();
+        if (!hooksConfig) {
+            return;
+        }
+
+        await fs.mkdir(dirname(settingsPath), { recursive: true });
+
+        try {
+            await updateJsoncFile(settingsPath, (config: ClaudeCodeSettingsConfig) => {
+                if (!config.hooks) {
+                    config.hooks = {};
+                }
+
+                for (const [hookName, hookEntries] of Object.entries(hooksConfig.hooks)) {
+                    const existingEntries = config.hooks[hookName] || [];
+
+                    // Remove stale defenter entries
+                    const cleaned = existingEntries.filter(
+                        entry => !this.isDefenterHookEntry(entry)
+                    );
+
+                    // Add our hook entries
+                    config.hooks[hookName] = [...cleaned, ...hookEntries];
+                }
+
+                return config;
+            });
+
+            this.fileWatcher.recordWrite(settingsPath);
+
+            this.logger.info(
+                `Claude Code Hooks: Registered hooks in ${settingsPath}`
+            );
+        } catch (error) {
+            this.logger.error(
+                `Claude Code Hooks: Failed to register hooks in ${settingsPath}`,
+                error
+            );
+            throw error;
+        }
     }
 }

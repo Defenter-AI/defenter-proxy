@@ -432,7 +432,57 @@ export const samePath = (a: string, b: string): boolean => {
     return pa === pb;
 };
 
-export { getIdeSystemConfigPaths } from "./ideConfigPaths";
+import { OSUser } from "../types";
+
+/**
+ * Check if an error is a file access permission error
+ */
+export function isAccessError(error: any): boolean {
+    return error?.code === "EACCES" || error?.code === "EPERM";
+}
+
+/**
+ * List all users who have a specific IDE installed
+ * @param configDirName The IDE config directory name (e.g., ".cursor", ".claude")
+ */
+export async function listIdeUsers(configDirName: string): Promise<OSUser[]> {
+    const users: OSUser[] = [];
+
+    const platform = mapOS();
+    switch (platform) {
+        case "macos": {
+            const usersDir = "/Users";
+            try {
+                const entries = (await fs.promises.readdir(usersDir)).filter(
+                    username => !["Shared", "Guest", ".localized"].includes(username)
+                );
+
+                for (const username of entries) {
+                    const homeDir = path.join(usersDir, username);
+                    const ideDir = path.join(homeDir, configDirName);
+
+                    try {
+                        if (await fileExists(ideDir)) {
+                            users.push({ username, homeDir });
+                        }
+                    } catch (error: any) {
+                        if (isAccessError(error)) {
+                            continue;
+                        }
+                        throw error;
+                    }
+                }
+            } catch {
+                // do nothing
+            }
+            break;
+        }
+    }
+
+    return users;
+}
+
+export { getIdeSystemConfigPaths, getGlobalMcpConfigPaths } from "./ideConfigPaths";
 export { getUvCommand } from "./uvCommand";
 export {
     listCursorUsers,
@@ -440,4 +490,10 @@ export {
     getCursorUserHooksPath,
     parseCursorWorkspaces,
 } from "./cursor";
+export {
+    listClaudeUsers,
+    getClaudeGlobalSettingsPath,
+    getClaudeUserSettingsPath,
+    parseClaudeProjects,
+} from "./claude";
 export { OSUser } from "../types";

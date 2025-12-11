@@ -1,7 +1,9 @@
 import { spawn } from "child_process";
-import { existsSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
+import { reportLifecycleEvent } from "./api";
+import { VERSION } from "./version";
 
 async function checkUvxInstalled(): Promise<boolean> {
     return new Promise((resolve) => {
@@ -11,12 +13,53 @@ async function checkUvxInstalled(): Promise<boolean> {
     });
 }
 
+function getVersionFilePath(): string {
+    return join(homedir(), ".defenter", ".claude-code-version");
+}
+
+function getStoredVersion(): string | undefined {
+    try {
+        return readFileSync(getVersionFilePath(), "utf8").trim();
+    } catch {
+        return undefined;
+    }
+}
+
+function saveVersion(version: string): void {
+    const filePath = getVersionFilePath();
+    const dir = join(homedir(), ".defenter");
+    if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+    }
+    writeFileSync(filePath, version, "utf8");
+}
+
 function getDaemonPidPath(): string {
     return join(homedir(), ".defenter", ".wrapped_mcps", "claude", "daemon.pid");
 }
 
 function isDaemonRunning(): boolean {
-    return existsSync(getDaemonPidPath());
+    const pidPath = getDaemonPidPath();
+    if (!existsSync(pidPath)) {
+        return false;
+    }
+
+    try {
+        const pid = parseInt(readFileSync(pidPath, "utf8").trim(), 10);
+        if (isNaN(pid)) {
+            return false;
+        }
+
+        // Check if process is running (signal 0 doesn't kill, just checks)
+        process.kill(pid, 0);
+        return true;
+    } catch {
+        // Process not running or no permission - clean up stale PID file
+        try {
+            unlinkSync(pidPath);
+        } catch {}
+        return false;
+    }
 }
 
 function startDaemon(): void {
@@ -41,6 +84,21 @@ export async function sessionStart(): Promise<void> {
     if (!hasUvx) {
         console.error("uvx not found. Install: curl -LsSf https://astral.sh/uv/install.sh | sh");
         process.exit(0);
+    }
+
+    // Lifecycle event reporting
+    try {
+        const storedVersion = getStoredVersion();
+        if (!storedVersion) {
+            await reportLifecycleEvent("install");
+        } else if (storedVersion !== VERSION) {
+            await reportLifecycleEvent("update");
+        } else {
+            await reportLifecycleEvent("heartbeat");
+        }
+        saveVersion(VERSION);
+    } catch {
+        // never crash on lifecycle reporting
     }
 
     if (isDaemonRunning()) {

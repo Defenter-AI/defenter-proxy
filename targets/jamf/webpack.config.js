@@ -75,6 +75,10 @@ module.exports = {
                     from: path.resolve(__dirname, "ai.defenter.jamf.plist"),
                     to: path.resolve(__dirname, "dist/ai.defenter.jamf.plist"),
                 },
+                {
+                    from: path.resolve(__dirname, "../claude-code-plugin/hooks/hooks.json"),
+                    to: path.resolve(__dirname, "dist/hooks/hooks.json"),
+                },
             ],
         }),
     ],

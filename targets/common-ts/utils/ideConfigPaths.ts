@@ -1,4 +1,5 @@
 import { join } from "path";
+import { mapOS } from "./index";
 
 /**
  * Get standard system paths for different AI client IDE configurations
@@ -29,5 +30,28 @@ export function getIdeSystemConfigPaths(homeDir: string): Record<string, string[
         vscode: createPaths("vscode", appSupportPaths("Code")),
         cline: createPaths("cline", appSupportPaths("Cline")),
     };
+}
+
+/**
+ * Get enterprise/global MCP config paths (not user-specific)
+ * These are system-wide managed configurations
+ */
+export function getGlobalMcpConfigPaths(): Record<string, string[]> {
+    const platform = mapOS();
+
+    switch (platform) {
+        case "macos":
+            return {
+                cursor: ["/Library/Application Support/Cursor/mcp.json"],
+                claude: ["/Library/Application Support/Claude/mcp.json"],
+            };
+        case "windows":
+            return {
+                cursor: ["C:\\ProgramData\\Cursor\\mcp.json"],
+                claude: ["C:\\ProgramData\\Claude\\mcp.json"],
+            };
+        default:
+            return {};
+    }
 }
 

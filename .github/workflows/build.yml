@@ -97,6 +97,11 @@ jobs:
           sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$v\"/" ../jamf/package.json
           sed -i "s/export const VERSION = \".*\";/export const VERSION = \"$v\";/" ../jamf/src/version.ts
           
+          # Update claude-code-plugin
+          sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$v\"/" ../claude-code-plugin/package.json
+          sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$v\"/" ../claude-code-plugin/.claude-plugin/plugin.json
+          sed -i "s/export const VERSION = \".*\";/export const VERSION = \"$v\";/" ../claude-code-plugin/src/version.ts
+          
           echo "Bumped version to $v"
 
       - name: Update Gitleaks rules
@@ -113,6 +118,9 @@ jobs:
             targets/vsc-extension/package.json
             targets/jamf/package.json
             targets/jamf/src/version.ts
+            targets/claude-code-plugin/package.json
+            targets/claude-code-plugin/src/version.ts
+            targets/claude-code-plugin/.claude-plugin/plugin.json
             targets/package-lock.json
             targets/scripts/cursor/hooks/defenter-cursor-hook.sh
             targets/scripts/cursor/hooks/defenter-cursor-hook.bat
@@ -184,7 +192,7 @@ jobs:
           v=$(node -p "require('./package.json').version")
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add package.json ../jamf/package.json ../jamf/src/version.ts ../package-lock.json ../scripts/cursor/hooks/defenter-cursor-hook.sh ../scripts/cursor/hooks/defenter-cursor-hook.bat ../../src/wrapper/__version__.py ../../pyproject.toml ../../uv.lock ../../server.json ../../src/modules/redaction/gitleaks_rules.py
+          git add package.json ../jamf/package.json ../jamf/src/version.ts ../claude-code-plugin/package.json ../claude-code-plugin/src/version.ts ../claude-code-plugin/.claude-plugin/plugin.json ../package-lock.json ../scripts/cursor/hooks/defenter-cursor-hook.sh ../scripts/cursor/hooks/defenter-cursor-hook.bat ../../src/wrapper/__version__.py ../../pyproject.toml ../../uv.lock ../../server.json ../../src/modules/redaction/gitleaks_rules.py
           git commit -m "chore: bump version to $v [skip ci]"
           git pull --rebase origin main
           git push

@@ -1,7 +1,7 @@
 import { join, normalize, resolve } from "path";
 import { homedir } from "os";
 import { IConfigDiscoverer } from "@defenter/common-ts/types";
-import { fileExists, getIdeSystemConfigPaths } from "@defenter/common-ts/utils";
+import { fileExists, getGlobalMcpConfigPaths, getIdeSystemConfigPaths } from "@defenter/common-ts/utils";
 
 export class ClaudeCodeConfigDiscoverer implements IConfigDiscoverer {
     async discoverConfigFiles(): Promise<string[]> {
@@ -19,6 +19,10 @@ export class ClaudeCodeConfigDiscoverer implements IConfigDiscoverer {
 
         const systemPaths = getIdeSystemConfigPaths(homedir()).claude || [];
         configs.push(...await this.findExistingFiles(systemPaths));
+
+        // Enterprise/global paths
+        const globalPaths = getGlobalMcpConfigPaths().claude || [];
+        configs.push(...await this.findExistingFiles(globalPaths));
 
         return Array.from(new Set(configs.map(p => normalize(resolve(p)))));
     }

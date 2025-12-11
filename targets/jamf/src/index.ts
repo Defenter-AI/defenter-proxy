@@ -1,31 +1,14 @@
 import { ConfigurationMonitor } from "@defenter/common-ts/mcp/monitor";
-import { CursorHooksMonitor } from "@defenter/common-ts/hooks/monitor";
-import { initialize as initializeCursorHooks } from "@defenter/common-ts/hooks/initialize";
-import { ILogger } from "@defenter/common-ts/types";
+import { ClaudeCodeHooksMonitor, CursorHooksMonitor } from "@defenter/common-ts/hooks/monitor";
+import { initialize as initializeHooks } from "@defenter/common-ts/hooks/initialize";
+import { ConsoleLogger } from "@defenter/common-ts/console";
 import { JamfConfigDiscoverer } from "./configDiscoverer";
-import { discoverAllHooksFiles } from "./hooksDiscoverer";
+import { discoverAllClaudeCodeSettingsFiles, discoverAllCursorHooksFiles } from "./hooksDiscoverer";
 import { JamfErrorHandler } from "./errorHandler";
 import { JamfUvRunner } from "./uvRunner";
 import { daemonize } from "./daemon";
 import { VERSION } from "./version";
-
-/**
- * Console logger for jamf
- */
-class JamfLogger implements ILogger {
-    debug(message: string, ...args: any[]): void {
-        console.log(`[DEBUG] ${message}`, ...args);
-    }
-    info(message: string, ...args: any[]): void {
-        console.log(`[INFO] ${message}`, ...args);
-    }
-    warn(message: string, ...args: any[]): void {
-        console.warn(`[WARN] ${message}`, ...args);
-    }
-    error(message: string, error?: any): void {
-        console.error(`[ERROR] ${message}`, error);
-    }
-}
+import { join } from "path";
 
 async function main() {
     const isDaemon = process.argv.includes("--daemon");
@@ -35,7 +18,7 @@ async function main() {
     }
 
     const errorHandler = new JamfErrorHandler();
-    const logger = new JamfLogger();
+    const logger = new ConsoleLogger();
     const version = VERSION;
 
     const uvRunner = new JamfUvRunner(version);
@@ -47,22 +30,38 @@ async function main() {
     const discoverer = new JamfConfigDiscoverer();
     await configMonitor.startMonitoring(uvRunner, discoverer);
 
-    // Start Cursor hooks monitoring
-    const hooksConfig = await discoverAllHooksFiles();
+    // Discover Cursor hooks files and their associated workspaces
+    const cursorHooksFiles = await discoverAllCursorHooksFiles();
 
-    // Initialize Cursor hooks API for each unique set of workspace roots
+    // Initialize Cursor hooks API for each hooks file
     await Promise.allSettled(
-        Array.from(hooksConfig.values()).map(workspaceRoots =>
-            initializeCursorHooks(uvRunner, workspaceRoots, logger)
+        Array.from(cursorHooksFiles.values()).map(workspaceRoots =>
+            initializeHooks(uvRunner, workspaceRoots, logger, "cursor")
         )
     );
 
-    // Start monitoring all hooks files
+    // Start monitoring all Cursor hooks files
     const extensionPath = process.env.DEFENTER_EXTENSION_PATH || __dirname;
-    const hooksMonitor = new CursorHooksMonitor(extensionPath, errorHandler, logger);
-    await hooksMonitor.startMonitoring(Array.from(hooksConfig.keys()));
+    const cursorHooksMonitor = new CursorHooksMonitor(extensionPath, errorHandler, logger);
+    await cursorHooksMonitor.startMonitoring(Array.from(cursorHooksFiles.keys()));
 
-    logger.info("Hooks monitoring started successfully");
+    logger.info("Cursor hooks monitoring started successfully");
+
+    // Discover Claude Code settings files and their associated projects
+    const claudeSettingsFiles = await discoverAllClaudeCodeSettingsFiles();
+
+    // Initialize Claude Code hooks API for each settings file
+    await Promise.allSettled(
+        Array.from(claudeSettingsFiles.values()).map(projects =>
+            initializeHooks(uvRunner, projects, logger, "claude-code")
+        )
+    );
+
+    const claudeHooksJsonPath = join(__dirname, "hooks", "hooks.json");
+    const claudeHooksMonitor = new ClaudeCodeHooksMonitor(claudeHooksJsonPath, errorHandler, logger);
+    await claudeHooksMonitor.startMonitoring(Array.from(claudeSettingsFiles.keys()));
+
+    logger.info("Claude Code hooks monitoring started successfully");
 
     // Keep process alive
     await new Promise(() => {});

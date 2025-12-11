@@ -1,13 +1,8 @@
-import { IUvRunner, UvCommand } from "@defenter/common-ts/types";
-import { getUvCommand } from "@defenter/common-ts/utils";
+import { SimpleUvRunner } from "@defenter/common-ts/uvRunner";
 import { VERSION } from "./version";
 
-export class ClaudeCodeUvRunner implements IUvRunner {
-    async initialize(): Promise<void> {
-        // No initialization needed - uvx setup is handled by SessionStart hook
-    }
-
-    getCommand(): UvCommand {
-        return getUvCommand(VERSION);
+export class ClaudeCodeUvRunner extends SimpleUvRunner {
+    constructor() {
+        super(VERSION);
     }
 }

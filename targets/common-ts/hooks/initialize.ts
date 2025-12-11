@@ -2,19 +2,20 @@ import { spawn } from "child_process";
 import { ILogger, IUvRunner } from "@defenter/common-ts/types";
 
 /**
- * Initialize Cursor hooks with security API (call init handler)
- * This must be called before registering hooks to set up the Cursor hooks system
+ * Initialize hooks with backend (call init handler)
+ * This must be called before registering hooks to set up the hooks system
  */
 export async function initialize(
     uvRunner: IUvRunner,
     workspaceRoots: string[],
-    logger: ILogger
+    logger: ILogger,
+    ide: string
 ): Promise<void> {
     try {
-        logger.info("Cursor Hooks: Initializing hooks with security API");
+        logger.info(`${ide} Hooks: Initializing hooks with backend`);
 
         const uvCommand = uvRunner.getCommand();
-        const args = [...uvCommand.args, "--ide-tool", "--ide", "cursor"];
+        const args = [...uvCommand.args, "--ide-tool", "--ide", ide];
 
         return new Promise((resolve, reject) => {
             const proc = spawn(uvCommand.executable, args, {
@@ -35,7 +36,7 @@ export async function initialize(
                     proc.stdin.end();
                 } catch (error) {
                     logger.error(
-                        "Cursor Hooks: Failed to write to init handler stdin",
+                        `${ide} Hooks: Failed to write to init handler stdin`,
                         error
                     );
                 }
@@ -54,14 +55,14 @@ export async function initialize(
 
             proc.on("close", code => {
                 if (code === 0) {
-                    logger.info("Cursor Hooks: Init handler completed successfully");
+                    logger.info(`${ide} Hooks: Init handler completed successfully`);
                     if (stdout) {
                         logger.debug(`Init handler output: ${stdout}`);
                     }
                     resolve();
                 } else {
                     logger.error(
-                        `Cursor Hooks: Init handler failed with exit code ${code}`
+                        `${ide} Hooks: Init handler failed with exit code ${code}`
                     );
                     if (stderr) {
                         logger.error(`Init handler stderr: ${stderr}`);
@@ -72,13 +73,13 @@ export async function initialize(
             });
 
             proc.on("error", error => {
-                logger.error("Cursor Hooks: Failed to spawn init handler", error);
+                logger.error(`${ide} Hooks: Failed to spawn init handler`, error);
                 // Don't reject - allow monitoring to continue even if init fails
                 resolve();
             });
         });
     } catch (error) {
-        logger.error("Cursor Hooks: Failed to initialize hooks", error);
+        logger.error(`${ide} Hooks: Failed to initialize hooks`, error);
         // Don't fail the entire monitoring if init fails
     }
 }
