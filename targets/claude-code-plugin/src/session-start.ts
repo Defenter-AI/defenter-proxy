@@ -5,7 +5,7 @@ import { homedir } from "os";
 import { reportLifecycleEvent } from "./api";
 import { VERSION } from "./version";
 
-async function checkUvxInstalled(): Promise<boolean> {
+export async function checkUvxInstalled(): Promise<boolean> {
     return new Promise((resolve) => {
         const proc = spawn("uvx", ["--version"], { stdio: "pipe" });
         proc.on("error", () => resolve(false));
@@ -13,11 +13,11 @@ async function checkUvxInstalled(): Promise<boolean> {
     });
 }
 
-function getVersionFilePath(): string {
+export function getVersionFilePath(): string {
     return join(homedir(), ".defenter", ".claude-code-version");
 }
 
-function getStoredVersion(): string | undefined {
+export function getStoredVersion(): string | undefined {
     try {
         return readFileSync(getVersionFilePath(), "utf8").trim();
     } catch {
@@ -25,7 +25,7 @@ function getStoredVersion(): string | undefined {
     }
 }
 
-function saveVersion(version: string): void {
+export function saveVersion(version: string): void {
     const filePath = getVersionFilePath();
     const dir = join(homedir(), ".defenter");
     if (!existsSync(dir)) {
@@ -34,11 +34,11 @@ function saveVersion(version: string): void {
     writeFileSync(filePath, version, "utf8");
 }
 
-function getDaemonPidPath(): string {
+export function getDaemonPidPath(): string {
     return join(homedir(), ".defenter", ".wrapped_mcps", "claude", "daemon.pid");
 }
 
-function isDaemonRunning(): boolean {
+export function isDaemonRunning(): boolean {
     const pidPath = getDaemonPidPath();
     if (!existsSync(pidPath)) {
         return false;
@@ -62,7 +62,7 @@ function isDaemonRunning(): boolean {
     }
 }
 
-function startDaemon(): void {
+export function startDaemon(): void {
     const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
     if (!pluginRoot) {
         console.error("CLAUDE_PLUGIN_ROOT not set");

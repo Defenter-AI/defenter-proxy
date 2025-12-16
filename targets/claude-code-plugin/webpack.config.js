@@ -6,7 +6,6 @@ module.exports = {
     target: "node",
     mode: "production",
     entry: {
-        index: "./src/index.ts",
         launcher: "./src/launcher.ts",
         uninstall: "./src/uninstall.ts",
     },

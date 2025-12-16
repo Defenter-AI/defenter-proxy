@@ -7,7 +7,7 @@
     {
       "name": "defenter",
       "source": "./",
-      "description": "Automatic security wrapping for all MCP servers with real-time monitoring and policy enforcement"
+      "description": "Real-time semantic security for AI coding agents and MCP tools"
     }
   ]
 }
