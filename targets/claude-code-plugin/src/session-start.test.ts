@@ -1,14 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
-import { spawn, execSync } from "child_process";
-import {
-    getDaemonPidPath,
-    isDaemonRunning,
-    getVersionFilePath,
-    getStoredVersion,
-    saveVersion,
-} from "./session-start";
+import { execSync, spawn } from "child_process";
+import { getStoredVersion, isDaemonRunning, saveVersion } from "./session-start";
+import { getClaudeDaemonPidPath, getClaudeVersionFilePath } from "./paths";
 
 function isProcessRunning(pid: number): boolean {
     try {
@@ -37,11 +32,10 @@ describe("session-start", () => {
         } catch {}
     });
 
-    describe("getDaemonPidPath", () => {
-        it("returns path under .defenter/.wrapped_mcps/claude", () => {
-            const pidPath = getDaemonPidPath();
+    describe("getClaudeDaemonPidPath", () => {
+        it("returns path under .defenter/claude", () => {
+            const pidPath = getClaudeDaemonPidPath();
             expect(pidPath).toContain(".defenter");
-            expect(pidPath).toContain(".wrapped_mcps");
             expect(pidPath).toContain("claude");
             expect(pidPath).toContain("daemon.pid");
         });
@@ -50,7 +44,7 @@ describe("session-start", () => {
     describe("isDaemonRunning", () => {
         it("returns false when PID file does not exist", () => {
             // Default state - no PID file
-            const pidPath = getDaemonPidPath();
+            const pidPath = getClaudeDaemonPidPath();
             if (existsSync(pidPath)) {
                 unlinkSync(pidPath);
             }
@@ -58,7 +52,7 @@ describe("session-start", () => {
         });
 
         it("returns true when PID file exists and process is running", () => {
-            const pidPath = getDaemonPidPath();
+            const pidPath = getClaudeDaemonPidPath();
             const dir = join(pidPath, "..");
             mkdirSync(dir, { recursive: true });
 
@@ -73,7 +67,7 @@ describe("session-start", () => {
         });
 
         it("returns false and cleans up stale PID file when process is not running", () => {
-            const pidPath = getDaemonPidPath();
+            const pidPath = getClaudeDaemonPidPath();
             const dir = join(pidPath, "..");
             mkdirSync(dir, { recursive: true });
 
@@ -86,7 +80,7 @@ describe("session-start", () => {
         });
 
         it("returns false when PID file contains invalid data", () => {
-            const pidPath = getDaemonPidPath();
+            const pidPath = getClaudeDaemonPidPath();
             const dir = join(pidPath, "..");
             mkdirSync(dir, { recursive: true });
 
@@ -102,7 +96,7 @@ describe("session-start", () => {
         });
 
         it("correlates with actual ps verification", () => {
-            const pidPath = getDaemonPidPath();
+            const pidPath = getClaudeDaemonPidPath();
             const dir = join(pidPath, "..");
             mkdirSync(dir, { recursive: true });
 
@@ -127,14 +121,15 @@ describe("session-start", () => {
     });
 
     describe("version management", () => {
-        it("getVersionFilePath returns path under .defenter", () => {
-            const versionPath = getVersionFilePath();
+        it("getClaudeVersionFilePath returns path under .defenter/claude", () => {
+            const versionPath = getClaudeVersionFilePath();
             expect(versionPath).toContain(".defenter");
+            expect(versionPath).toContain("claude");
             expect(versionPath).toContain(".claude-code-version");
         });
 
         it("getStoredVersion returns undefined when file does not exist", () => {
-            const versionPath = getVersionFilePath();
+            const versionPath = getClaudeVersionFilePath();
             if (existsSync(versionPath)) {
                 unlinkSync(versionPath);
             }
@@ -143,7 +138,7 @@ describe("session-start", () => {
 
         it("saveVersion and getStoredVersion roundtrip", () => {
             const testVersion = "1.2.3-test";
-            const versionPath = getVersionFilePath();
+            const versionPath = getClaudeVersionFilePath();
 
             try {
                 saveVersion(testVersion);
@@ -158,7 +153,7 @@ describe("session-start", () => {
 });
 
 describe("daemon PID file integration", () => {
-    const pidPath = getDaemonPidPath();
+    const pidPath = getClaudeDaemonPidPath();
 
     afterEach(() => {
         if (existsSync(pidPath)) {
@@ -167,7 +162,7 @@ describe("daemon PID file integration", () => {
     });
 
     it("daemon writes PID file on start and cleans up on SIGTERM", async () => {
-        const pidPath = getDaemonPidPath();
+        const pidPath = getClaudeDaemonPidPath();
 
         // Clean up any existing PID file
         if (existsSync(pidPath)) {
@@ -175,7 +170,11 @@ describe("daemon PID file integration", () => {
         }
 
         // Spawn a mock daemon that writes PID and waits
-        const mockDaemon = spawn("node", ["-e", `
+        const mockDaemon = spawn(
+            "node",
+            [
+                "-e",
+                `
             const { mkdirSync, writeFileSync, unlinkSync } = require("fs");
             const { dirname } = require("path");
             const pidPath = "${pidPath.replace(/\\/g, "\\\\")}";
@@ -188,7 +187,10 @@ describe("daemon PID file integration", () => {
             process.on("SIGTERM", cleanup);
             process.on("SIGINT", cleanup);
             setTimeout(() => {}, 60000);
-        `], { detached: true, stdio: "ignore" });
+        `,
+            ],
+            { detached: true, stdio: "ignore" }
+        );
 
         // Wait for PID file to be written
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -225,7 +227,11 @@ describe("daemon PID file integration", () => {
 
     it("prevents duplicate daemon spawn when one is already running", async () => {
         // Spawn first daemon
-        const daemon1 = spawn("node", ["-e", `
+        const daemon1 = spawn(
+            "node",
+            [
+                "-e",
+                `
             const { mkdirSync, writeFileSync, unlinkSync } = require("fs");
             const { dirname } = require("path");
             const pidPath = "${pidPath.replace(/\\/g, "\\\\")}";
@@ -238,7 +244,10 @@ describe("daemon PID file integration", () => {
             process.on("SIGTERM", cleanup);
             process.on("SIGINT", cleanup);
             setTimeout(() => {}, 60000);
-        `], { detached: true, stdio: "ignore" });
+        `,
+            ],
+            { detached: true, stdio: "ignore" }
+        );
 
         await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -266,7 +275,11 @@ describe("daemon PID file integration", () => {
 
     it("allows new daemon spawn after previous daemon exits", async () => {
         // Spawn first daemon
-        const daemon1 = spawn("node", ["-e", `
+        const daemon1 = spawn(
+            "node",
+            [
+                "-e",
+                `
             const { mkdirSync, writeFileSync, unlinkSync } = require("fs");
             const { dirname } = require("path");
             const pidPath = "${pidPath.replace(/\\/g, "\\\\")}";
@@ -278,7 +291,10 @@ describe("daemon PID file integration", () => {
             };
             process.on("SIGTERM", cleanup);
             setTimeout(() => {}, 60000);
-        `], { detached: true, stdio: "ignore" });
+        `,
+            ],
+            { detached: true, stdio: "ignore" }
+        );
 
         await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -295,7 +311,11 @@ describe("daemon PID file integration", () => {
         expect(isProcessRunning(firstPid)).toBe(false);
 
         // Spawn second daemon
-        const daemon2 = spawn("node", ["-e", `
+        const daemon2 = spawn(
+            "node",
+            [
+                "-e",
+                `
             const { mkdirSync, writeFileSync, unlinkSync } = require("fs");
             const { dirname } = require("path");
             const pidPath = "${pidPath.replace(/\\/g, "\\\\")}";
@@ -307,7 +327,10 @@ describe("daemon PID file integration", () => {
             };
             process.on("SIGTERM", cleanup);
             setTimeout(() => {}, 60000);
-        `], { detached: true, stdio: "ignore" });
+        `,
+            ],
+            { detached: true, stdio: "ignore" }
+        );
 
         await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -340,7 +363,11 @@ describe("daemon PID file integration", () => {
         expect(existsSync(pidPath)).toBe(false);
 
         // Now a new daemon should be allowed to spawn
-        const daemon = spawn("node", ["-e", `
+        const daemon = spawn(
+            "node",
+            [
+                "-e",
+                `
             const { mkdirSync, writeFileSync, unlinkSync } = require("fs");
             const { dirname } = require("path");
             const pidPath = "${pidPath.replace(/\\/g, "\\\\")}";
@@ -352,7 +379,10 @@ describe("daemon PID file integration", () => {
             };
             process.on("SIGTERM", cleanup);
             setTimeout(() => {}, 60000);
-        `], { detached: true, stdio: "ignore" });
+        `,
+            ],
+            { detached: true, stdio: "ignore" }
+        );
 
         await new Promise(resolve => setTimeout(resolve, 500));
 

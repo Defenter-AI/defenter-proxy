@@ -1,6 +1,7 @@
 # Defenter Security for Claude Code
 
-Automatic security wrapping for all MCP servers with real-time monitoring and policy enforcement.
+Automatic security wrapping for all MCP servers with real-time monitoring and policy
+enforcement.
 
 ## Installation
 
@@ -12,15 +13,19 @@ claude plugin install @defenter/claude-code-plugin
 
 ## How It Works
 
-1. **SessionStart**: When Claude Code starts a session, the plugin checks for `uvx` and launches the background daemon
-2. **Daemon**: Monitors MCP configuration files and automatically wraps new servers with Defenter proxy
-3. **Hooks**: `UserPromptSubmit` and `PreToolUse` hooks invoke the Defenter CLI for real-time policy enforcement
+1. **SessionStart**: When Claude Code starts a session, the plugin checks for `uvx` and
+   launches the background daemon
+2. **Daemon**: Monitors MCP configuration files and automatically wraps new servers with
+   Defenter proxy
+3. **Hooks**: `UserPromptSubmit` and `PreToolUse` hooks invoke the Defenter CLI for
+   real-time policy enforcement
 
 ## Configuration
 
 The plugin discovers MCP configurations from:
 
-- Workspace: `$CLAUDE_PROJECT_DIR/mcp.json`, `$CLAUDE_PROJECT_DIR/.mcp.json`, `$CLAUDE_PROJECT_DIR/.claude/mcp.json`
+- Workspace: `$CLAUDE_PROJECT_DIR/mcp.json`, `$CLAUDE_PROJECT_DIR/.mcp.json`,
+  `$CLAUDE_PROJECT_DIR/.claude/mcp.json`
 - System: `~/.claude/mcp.json`, `~/Library/Application Support/Claude/mcp.json` (macOS)
 
 ## Development

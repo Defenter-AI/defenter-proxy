@@ -38,9 +38,9 @@
       "types": "./dist/console.d.ts",
       "default": "./dist/console.js"
     },
-    "./uvRunner": {
-      "types": "./dist/uvRunner.d.ts",
-      "default": "./dist/uvRunner.js"
+    "./uv": {
+      "types": "./dist/uv.d.ts",
+      "default": "./dist/uv.js"
     }
   },
   "scripts": {

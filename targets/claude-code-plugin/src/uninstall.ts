@@ -1,6 +1,9 @@
 import { ConfigurationMonitor } from "@defenter/common-ts/mcp/monitor";
 import { ClaudeCodeHooksMonitor } from "@defenter/common-ts/hooks/monitor";
-import { getClaudeGlobalSettingsPath, getClaudeUserSettingsPath } from "@defenter/common-ts/utils";
+import {
+    getClaudeGlobalSettingsPath,
+    getClaudeUserSettingsPath,
+} from "@defenter/common-ts/utils";
 import { ClaudeCodeLogger } from "./logger";
 import { ClaudeCodeErrorHandler } from "./errorHandler";
 import { reportLifecycleEvent } from "./api";
@@ -8,7 +11,8 @@ import { promises as fs } from "fs";
 import { join } from "path";
 
 async function main() {
-    console.log("Defenter uninstall cleanup...");
+    const logger = new ClaudeCodeLogger();
+    logger.info("Defenter uninstall cleanup...");
 
     try {
         await reportLifecycleEvent("uninstall");
@@ -17,35 +21,43 @@ async function main() {
     }
 
     try {
-        const logger = new ClaudeCodeLogger();
         const errorHandler = new ClaudeCodeErrorHandler();
         const configMonitor = new ConfigurationMonitor(errorHandler, logger, "claude");
 
         // 1. Unwrap MCP configurations
         const filesToUnwrap = await configMonitor.getAllWrappedFiles();
-        console.log(`Found ${filesToUnwrap.length} wrapped files`);
+        logger.info(`Found ${filesToUnwrap.length} wrapped files`);
 
-        let successCount = 0, errorCount = 0;
+        let successCount = 0,
+            errorCount = 0;
 
         for (const filePath of filesToUnwrap) {
             try {
                 if (await configMonitor.unwrapConfigurationInFile(filePath)) {
                     successCount++;
-                    console.log(`Unwrapped: ${filePath}`);
+                    logger.info(`Unwrapped: ${filePath}`);
                 }
             } catch (error: any) {
                 errorCount++;
-                console.error(`Failed: ${filePath}:`, error.message);
+                logger.error(`Failed: ${filePath}`, error);
             }
         }
 
-        console.log(`MCP configs: ${successCount} unwrapped, ${errorCount} errors`);
+        logger.info(`MCP configs: ${successCount} unwrapped, ${errorCount} errors`);
 
         // 2. Unregister Claude Code hooks
-        console.log("Cleaning up Claude Code hooks...");
+        logger.info("Cleaning up Claude Code hooks...");
         try {
-            const hooksJsonPath = join(process.env.CLAUDE_PLUGIN_ROOT || __dirname, "hooks", "hooks.json");
-            const hooksMonitor = new ClaudeCodeHooksMonitor(hooksJsonPath, errorHandler, logger);
+            const hooksJsonPath = join(
+                process.env.CLAUDE_PLUGIN_ROOT || __dirname,
+                "hooks",
+                "hooks.json"
+            );
+            const hooksMonitor = new ClaudeCodeHooksMonitor(
+                hooksJsonPath,
+                errorHandler,
+                logger
+            );
 
             const settingsFiles = [getClaudeUserSettingsPath()];
             const globalSettings = getClaudeGlobalSettingsPath();
@@ -54,20 +66,20 @@ async function main() {
             }
 
             await hooksMonitor.unregisterHook(settingsFiles);
-            console.log("Claude Code hooks unregistered");
+            logger.info("Claude Code hooks unregistered");
         } catch (error: any) {
-            console.error("Failed to unregister hooks:", error.message);
+            logger.error("Failed to unregister hooks", error);
         }
 
         // 3. Clean up registry directories
         try {
             await fs.rmdir(configMonitor.getMcpsDir());
-            console.log("MCP registry cleaned up");
+            logger.info("MCP registry cleaned up");
         } catch {}
 
-        console.log("Defenter uninstall cleanup finished");
+        logger.info("Defenter uninstall cleanup finished");
     } catch (error) {
-        console.error("Uninstall failed:", error);
+        logger.error("Uninstall failed", error);
         process.exit(1);
     }
 }

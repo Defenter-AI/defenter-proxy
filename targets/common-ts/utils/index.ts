@@ -483,7 +483,6 @@ export async function listIdeUsers(configDirName: string): Promise<OSUser[]> {
 }
 
 export { getIdeSystemConfigPaths, getGlobalMcpConfigPaths } from "./ideConfigPaths";
-export { getUvCommand } from "./uvCommand";
 export {
     listCursorUsers,
     getCursorGlobalHooksPath,

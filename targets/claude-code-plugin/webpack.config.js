@@ -1,5 +1,6 @@
 const path = require("path");
 const TerserPlugin = require("terser-webpack-plugin");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
 
 /** @type {import('webpack').Configuration} */
 module.exports = {
@@ -40,6 +41,24 @@ module.exports = {
             },
         ],
     },
+    plugins: [
+        new CopyWebpackPlugin({
+            patterns: [
+                {
+                    from: path.resolve(__dirname, "../scripts/setup-uvx-macos.sh"),
+                    to: path.resolve(__dirname, "scripts/setup-uvx-macos.sh"),
+                },
+                {
+                    from: path.resolve(__dirname, "../scripts/setup-uvx-linux.sh"),
+                    to: path.resolve(__dirname, "scripts/setup-uvx-linux.sh"),
+                },
+                {
+                    from: path.resolve(__dirname, "../scripts/setup-uvx-windows.ps1"),
+                    to: path.resolve(__dirname, "scripts/setup-uvx-windows.ps1"),
+                },
+            ],
+        }),
+    ],
     optimization: {
         minimize: true,
         minimizer: [
