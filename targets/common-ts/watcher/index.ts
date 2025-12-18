@@ -236,7 +236,7 @@ export class FileWatcher {
                 const normalizedPath = normalize(resolve(filePath));
                 if (this.watchedFiles.has(normalizedPath)) {
                     this.callbacks.logger.info(
-                        `📄 Configuration file deleted: ${normalizedPath}`
+                        `Configuration file deleted: ${normalizedPath}`
                     );
 
                     // Call onFileDelete if provided (for auto-recreation scenarios)
@@ -256,7 +256,7 @@ export class FileWatcher {
 
             this.chokidarWatcher.on("error", async (error: Error) => {
                 this.callbacks.logger.error(
-                    "🚨 Config files watcher error occurred:",
+                    "Config files watcher error occurred:",
                     error
                 );
 
@@ -267,7 +267,7 @@ export class FileWatcher {
                 ) {
                     this.reconnectAttempts++;
                     this.callbacks.logger.info(
-                        `🔄 Attempting to recover file watcher (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`
+                        `Attempting to recover file watcher (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`
                     );
 
                     // Clear any existing recovery timeout
@@ -280,12 +280,12 @@ export class FileWatcher {
                             this.isRecreatingWatcher = true;
                             await this.startWatching(Array.from(this.watchedFiles));
                             this.callbacks.logger.info(
-                                "✅ File watcher recovered successfully"
+                                "File watcher recovered successfully"
                             );
                             this.reconnectAttempts = 0;
                         } catch (recoveryError) {
                             this.callbacks.logger.error(
-                                "❌ File watcher recovery failed:",
+                                "File watcher recovery failed:",
                                 recoveryError
                             );
                         } finally {
@@ -295,7 +295,7 @@ export class FileWatcher {
                     }, this.reconnectDelay * this.reconnectAttempts);
                 } else if (!this.isRecreatingWatcher) {
                     this.callbacks.logger.error(
-                        "❌ Max reconnection attempts reached. File watching disabled."
+                        "Max reconnection attempts reached. File watching disabled."
                     );
                     this.callbacks.onShowError?.(
                         "Defenter: File watching failed. Please reload the window or restart."
@@ -305,12 +305,12 @@ export class FileWatcher {
 
             this.chokidarWatcher.on("ready", () => {
                 this.callbacks.logger.info(
-                    "✅ Config files watcher is ready and monitoring files"
+                    "Config files watcher is ready and monitoring files"
                 );
                 this.reconnectAttempts = 0;
             });
 
-            this.callbacks.logger.info(`✅ Config files watcher created successfully`);
+            this.callbacks.logger.info("Config files watcher created successfully");
         } catch (error) {
             this.callbacks.logger.error("Failed to setup Config files watcher:", error);
             this.callbacks.onShowError?.(
@@ -357,7 +357,7 @@ export class FileWatcher {
                 await fs.access(normalizedPath);
             } catch {
                 this.callbacks.logger.debug(
-                    `📄 File no longer exists, skipping: ${normalizedPath}`
+                    `File no longer exists, skipping: ${normalizedPath}`
                 );
                 return;
             }

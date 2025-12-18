@@ -430,7 +430,9 @@ describe("CursorHooksMonitor - E2E Uninstall Flow", () => {
                     { command: "/path/to/defenter-0.0.1/scripts/cursor/hooks/defenter-cursor-hook.sh" },
                 ],
                 beforeReadFile: [{ command: "/path/to/defenter-0.0.1/scripts/cursor/hooks/defenter-cursor-hook.sh" }],
-                beforeSubmitPrompt: [{ command: "/path/to/defenter-0.0.1/scripts/cursor/hooks/defenter-cursor-hook.sh" }],
+                beforeSubmitPrompt: [
+                    { command: "/path/to/defenter-0.0.1/scripts/cursor/hooks/defenter-cursor-hook.sh" },
+                ],
             },
         };
 

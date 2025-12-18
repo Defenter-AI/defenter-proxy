@@ -147,12 +147,7 @@ export class AuditTrailProvider implements vscode.TreeDataProvider<AuditTrailIte
         const eventIdGroups = groupByEventId(promptGroup.entries);
         for (const eventIdGroup of eventIdGroups) {
             items.push(
-                new AuditTrailItem(
-                    "event_id_group",
-                    undefined,
-                    undefined,
-                    eventIdGroup
-                )
+                new AuditTrailItem("event_id_group", undefined, undefined, eventIdGroup)
             );
         }
 

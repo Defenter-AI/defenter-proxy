@@ -186,10 +186,7 @@ describe("claude-code config discoverer", () => {
 
         const d = new ClaudeCodeConfigDiscoverer("project", root);
         const files = await d.discoverConfigFiles();
-        expect(files).toEqual(expect.arrayContaining([
-            join(root, "mcp.json"),
-            join(root, ".claude", "mcp.json"),
-        ]));
+        expect(files).toEqual(expect.arrayContaining([join(root, "mcp.json"), join(root, ".claude", "mcp.json")]));
     });
 });
 

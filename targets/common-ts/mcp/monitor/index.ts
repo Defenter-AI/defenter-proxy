@@ -2,7 +2,7 @@ import { basename, dirname, join, normalize, resolve } from "path";
 import { promises as fs } from "fs";
 import { homedir } from "os";
 import { createHash } from "crypto";
-import * as JSONC from "jsonc-parser";
+import { applyEdits, modify, parseTree, findNodeAtLocation } from "jsonc-parser";
 import {
     fileExists,
     getIdeSystemConfigPaths,
@@ -269,9 +269,7 @@ export class ConfigurationMonitor {
             }
             await this.startMonitoring(this.uvRunner, this.discoverer);
 
-            this.logger.info(
-                "✅ Successfully re-established monitoring for new workspace"
-            );
+            this.logger.info("Successfully re-established monitoring for new workspace");
         } catch (error) {
             this.logger.error(
                 "Failed to re-establish monitoring after workspace change",
@@ -413,11 +411,11 @@ export class ConfigurationMonitor {
                     // Use direct string replacement to preserve ALL comments
                     try {
                         // Find the wrapped server node in the current content
-                        const parseTree = JSONC.parseTree(modifiedContent);
-                        if (!parseTree) {
+                        const tree = parseTree(modifiedContent);
+                        if (!tree) {
                             continue;
                         }
-                        const serverNode = JSONC.findNodeAtLocation(parseTree, [
+                        const serverNode = findNodeAtLocation(tree, [
                             serverKey,
                             serverName,
                         ]);
@@ -447,7 +445,7 @@ export class ConfigurationMonitor {
                 return {
                     modifiedContent,
                     hasChanges,
-                    successMessage: "🔓 Unwrapped configuration with comments preserved",
+                    successMessage: "Unwrapped configuration with comments preserved",
                 };
             }
         );
@@ -476,7 +474,7 @@ export class ConfigurationMonitor {
         // Wrap MCP servers with Defenter proxy using JSONC tree manipulation
         const hasChanges = await this.wrapConfigurationInFile(configPath);
         if (!hasChanges) {
-            this.logger.debug(`✅ All servers already wrapped in: ${configPath}`);
+            this.logger.debug(`All servers already wrapped in: ${configPath}`);
         }
 
         this.logger.info(`Successfully processed configuration: ${configPath}`);
@@ -591,11 +589,11 @@ export class ConfigurationMonitor {
                         // First-time wrapping: extract current server config
 
                         // Find server node in tree
-                        const parseTree = JSONC.parseTree(modifiedContent);
-                        if (!parseTree) {
+                        const tree = parseTree(modifiedContent);
+                        if (!tree) {
                             continue;
                         }
-                        const serverNode = JSONC.findNodeAtLocation(parseTree, [
+                        const serverNode = findNodeAtLocation(tree, [
                             serverKey,
                             serverName,
                         ]);
@@ -659,8 +657,8 @@ export class ConfigurationMonitor {
                         __bak_configs: backupConfig,
                     };
 
-                    // Use JSONC.modify to replace server with wrapped config
-                    const edits = JSONC.modify(
+                    // Use modify to replace server with wrapped config
+                    const edits = modify(
                         modifiedContent,
                         [serverKey, serverName],
                         wrappedConfig,
@@ -668,14 +666,14 @@ export class ConfigurationMonitor {
                             formattingOptions: { insertSpaces: true, tabSize: 2 },
                         }
                     );
-                    modifiedContent = JSONC.applyEdits(modifiedContent, edits);
+                    modifiedContent = applyEdits(modifiedContent, edits);
                     hasChanges = true;
                 }
 
                 return {
                     modifiedContent,
                     hasChanges,
-                    successMessage: "🔧 Wrapped servers in",
+                    successMessage: "Wrapped servers in",
                 };
             }
         );

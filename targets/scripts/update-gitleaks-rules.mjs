@@ -13,7 +13,7 @@ async function downloadGitleaksRules() {
         "https://raw.githubusercontent.com/gitleaks/gitleaks/master/config/gitleaks.toml";
 
     try {
-        console.log("📥 Downloading Gitleaks rules...");
+        console.log("Downloading Gitleaks rules...");
         const response = await fetch(GITLEAKS_TOML_URL);
         if (!response.ok) {
             throw new Error(
@@ -22,8 +22,8 @@ async function downloadGitleaksRules() {
         }
         return await response.text();
     } catch (err) {
-        console.error("❌ Failed to download Gitleaks rules:", err.message);
-        console.log("ℹ️  Using manually curated rules instead");
+        console.error("Failed to download Gitleaks rules:", err.message);
+        console.log("Using manually curated rules instead");
         return null;
     }
 }
@@ -264,19 +264,19 @@ async function updateGitleaksRules() {
     const tomlContent = await downloadGitleaksRules();
 
     if (!tomlContent) {
-        console.log("ℹ️  Keeping existing manually curated rules");
+        console.log("Keeping existing manually curated rules");
         return;
     }
 
     try {
-        console.log("🔄 Parsing Gitleaks rules...");
+        console.log("Parsing Gitleaks rules...");
         const parsed = parseTomlSimple(tomlContent);
         const rules = parsed.rules || [];
 
         const pythonRules = [];
         const validRules = [];
 
-        console.log(`📋 Processing ${rules.length} rules...`);
+        console.log(`Processing ${rules.length} rules...`);
 
         rules.forEach((rule, idx) => {
             if (!rule.regex || !rule.id) return;
@@ -299,7 +299,7 @@ async function updateGitleaksRules() {
                     /\[[^\]]*-[^\]]*=[^\]]*\]/.test(pattern)
                 ) {
                     console.log(
-                        `⚠️  Skipping problematic rule: ${rule.id} (pattern: ${pattern.substring(0, 50)}...)`
+                        `Skipping problematic rule: ${rule.id} (pattern: ${pattern.substring(0, 50)}...)`
                     );
                     return;
                 }
@@ -312,13 +312,13 @@ async function updateGitleaksRules() {
                 });
             } catch (err) {
                 console.log(
-                    `⚠️  Skipping invalid regex rule: ${rule.id} (${err.message})`
+                    `Skipping invalid regex rule: ${rule.id} (${err.message})`
                 );
                 return;
             }
         });
 
-        console.log(`✅ Validated ${validRules.length} working rules`);
+        console.log(`Validated ${validRules.length} working rules`);
 
         // Add manual rule overrides
         const manualRules = [
@@ -363,9 +363,9 @@ async function updateGitleaksRules() {
             if (existingIndex >= 0) {
                 // Generate a simple ii suffix
                 manualRule.id = `${manualRule.id}-ii`;
-                console.log(`➕ Added manual rule with UUID: ${manualRule.id}`);
+                console.log(`Added manual rule with UUID: ${manualRule.id}`);
             } else {
-                console.log(`➕ Added manual rule: ${manualRule.id}`);
+                console.log(`Added manual rule: ${manualRule.id}`);
             }
             validRules.push(manualRule);
         });
@@ -433,15 +433,15 @@ async function updateGitleaksRules() {
         pythonLines.push("");
 
         writeFileSync(outputPath, pythonLines.join("\n") + "\n", "utf8");
-        console.log(`✅ Updated ${outputPath} with ${validRules.length} rules`);
+        console.log(`Updated ${outputPath} with ${validRules.length} rules`);
     } catch (err) {
-        console.error("❌ Failed to process Gitleaks rules:", err.message);
-        console.log("ℹ️  Keeping existing manually curated rules");
+        console.error("Failed to process Gitleaks rules:", err.message);
+        console.log("Keeping existing manually curated rules");
     }
 }
 
 // Run the update
 updateGitleaksRules().catch(err => {
-    console.error("❌ Script failed:", err);
+    console.error("Script failed:", err);
     process.exit(1);
 });

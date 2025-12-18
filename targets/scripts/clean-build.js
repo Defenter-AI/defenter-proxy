@@ -20,7 +20,7 @@ class BuildCleaner {
     }
 
     async clean() {
-        console.log("🧹 Cleaning all build-generated files...");
+        console.log("Cleaning all build-generated files...");
         console.log(`Project root: ${this.projectRoot}`);
 
         let totalCleaned = 0;
@@ -31,12 +31,12 @@ class BuildCleaner {
         totalCleaned += await this.cleanNodeModules();
 
         console.log(
-            `\n✅ Build clean complete! Removed ${totalCleaned} files/directories.`
+            `\nBuild clean complete! Removed ${totalCleaned} files/directories.`
         );
     }
 
     async cleanTargetFiles() {
-        console.log("\n📦 Cleaning target build files...");
+        console.log("\nCleaning target build files...");
         let cleaned = 0;
 
         const targetPaths = [
@@ -61,7 +61,7 @@ class BuildCleaner {
     }
 
     async cleanSrcFiles() {
-        console.log("\n🐍 Cleaning src build files...");
+        console.log("\nCleaning src build files...");
         let cleaned = 0;
 
         const srcPaths = [
@@ -85,7 +85,7 @@ class BuildCleaner {
     }
 
     async cleanProjectFiles() {
-        console.log("\n🗂️  Cleaning project-wide files...");
+        console.log("\nCleaning project-wide files...");
         let cleaned = 0;
 
         const projectPaths = [
@@ -117,7 +117,7 @@ class BuildCleaner {
     }
 
     async cleanNodeModules() {
-        console.log("\n📦 Cleaning node_modules across targets...");
+        console.log("\nCleaning node_modules across targets...");
         let cleaned = 0;
 
         const nodeModulesPaths = [
@@ -147,18 +147,18 @@ class BuildCleaner {
                 if (stats.isDirectory()) {
                     fs.rmSync(filePath, { recursive: true, force: true });
                     console.log(
-                        `  🗑️  Removed directory: ${path.relative(this.projectRoot, filePath)}`
+                        `  Removed directory: ${path.relative(this.projectRoot, filePath)}`
                     );
                 } else {
                     fs.unlinkSync(filePath);
                     console.log(
-                        `  🗑️  Removed file: ${path.relative(this.projectRoot, filePath)}`
+                        `  Removed file: ${path.relative(this.projectRoot, filePath)}`
                     );
                 }
                 return true;
             }
         } catch (error) {
-            console.warn(`  ⚠️  Failed to remove ${filePath}: ${error.message}`);
+            console.warn(`  Failed to remove ${filePath}: ${error.message}`);
         }
         return false;
     }

@@ -161,7 +161,7 @@ export async function activate(context: vscode.ExtensionContext) {
             await vscode.window.withProgress(
                 {
                     location: vscode.ProgressLocation.Notification,
-                        title: `${isFirstActivation ? "Installing" : "Updating"} Defenter, please wait...`,
+                    title: `${isFirstActivation ? "Installing" : "Updating"} Defenter, please wait...`,
                     cancellable: false,
                 },
                 // initialize will take some time,

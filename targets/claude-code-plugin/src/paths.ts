@@ -27,10 +27,7 @@ function scopeKey(scope: ClaudeDaemonScope, root?: string): string {
     if (!root) {
         return `${scope}-unknown`;
     }
-    const h = createHash("sha256")
-        .update(root)
-        .digest("hex")
-        .slice(0, 8);
+    const h = createHash("sha256").update(root).digest("hex").slice(0, 8);
     return `${scope}-${h || "unknown"}`;
 }
 

@@ -23,7 +23,11 @@ async function main() {
 
     try {
         const errorHandler = new ConsoleErrorHandler();
-        const configMonitor = new ConfigurationMonitor(errorHandler, logger, "claude-code");
+        const configMonitor = new ConfigurationMonitor(
+            errorHandler,
+            logger,
+            "claude-code"
+        );
 
         // 1. Unwrap MCP configurations
         const filesToUnwrap = await configMonitor.getAllWrappedFiles();
@@ -49,11 +53,7 @@ async function main() {
         // 2. Unregister Claude Code hooks
         logger.info("Cleaning up Claude Code hooks...");
         try {
-            const hooksJsonPath = join(
-                getClaudePluginRoot(),
-                "hooks",
-                "hooks.json"
-            );
+            const hooksJsonPath = join(getClaudePluginRoot(), "hooks", "hooks.json");
             const hooksMonitor = new ClaudeCodeHooksMonitor(
                 hooksJsonPath,
                 errorHandler,

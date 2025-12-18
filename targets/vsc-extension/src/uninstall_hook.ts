@@ -22,9 +22,7 @@ async function main() {
         const detectedIDE = detectIDEFromScriptPath();
         const configMonitor = new ConfigurationMonitor(errorHandler, logger, detectedIDE);
         if (!detectedIDE) {
-            console.error(
-                "Cannot detect IDE from script path; aborting cleanup"
-            );
+            console.error("Cannot detect IDE from script path; aborting cleanup");
             console.error("Script path:", __dirname);
             process.exit(1);
         }

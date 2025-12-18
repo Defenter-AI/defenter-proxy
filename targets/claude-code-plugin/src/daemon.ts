@@ -1,30 +1,30 @@
-import { dirname, join } from "path";
+import { join } from "path";
 import { homedir } from "os";
-import { mkdirSync, unlinkSync, writeFileSync } from "fs";
 import { ConfigurationMonitor } from "@defenter/common-ts/mcp/monitor";
 import { ClaudeCodeHooksMonitor } from "@defenter/common-ts/hooks/monitor";
 import { initialize as initializeHooks } from "@defenter/common-ts/hooks/initialize";
 import { ConsoleErrorHandler } from "@defenter/common-ts/console";
 import {
+    deletePidFile,
+    setupDaemonSignalHandlers,
+    writePidFile,
+} from "@defenter/common-ts/daemon";
+import {
     buildClaudeCodeHooksInitInput,
-    getClaudeProjectSettingsPaths,
-    getClaudeManagedSettingsPath,
-    getClaudeUserSettingsPath,
     fileExists,
+    getClaudeManagedSettingsPath,
+    getClaudeProjectSettingsPaths,
+    getClaudeUserSettingsPath,
 } from "@defenter/common-ts/utils";
 import { ClaudeCodeConfigDiscoverer } from "./configDiscoverer";
 import { ClaudeCodeUvRunner } from "./uvRunner";
 import { ClaudeCodeLogger } from "./logger";
 import { isDaemonRunning } from "./session-start";
-import { getClaudeDaemonPidPath, getClaudePluginRoot, type ClaudeDaemonScope } from "./paths";
-
-const writePidFile = (pidPath: string) =>
-    writeFileSync(pidPath, process.pid.toString(), {
-        encoding: "utf8",
-        flag: "wx",
-    });
-
-const deletePidFile = (pidPath: string) => unlinkSync(pidPath);
+import {
+    type ClaudeDaemonScope,
+    getClaudeDaemonPidPath,
+    getClaudePluginRoot,
+} from "./paths";
 
 export interface RunDaemonOptions {
     scope: ClaudeDaemonScope;
@@ -65,32 +65,25 @@ export async function runDaemonScoped(opts: RunDaemonOptions): Promise<never> {
     }
 
     const pidPath = getClaudeDaemonPidPath(opts.scope, opts.root);
-    mkdirSync(dirname(pidPath), { recursive: true });
     try {
-        writePidFile(pidPath);
+        writePidFile(pidPath, true);
     } catch (error: any) {
         if (error?.code === "EEXIST") {
             if (isDaemonRunning(opts.scope, opts.root)) {
                 logger.info("Daemon already running");
                 process.exit(0);
             }
-            try {
-                deletePidFile(pidPath);
-            } catch {}
-            writePidFile(pidPath);
+            deletePidFile(pidPath);
+            writePidFile(pidPath, true);
         } else {
             throw error;
         }
     }
 
-    const cleanup = () => {
-        try {
-            deletePidFile(pidPath);
-        } catch {}
+    setupDaemonSignalHandlers(() => {
+        deletePidFile(pidPath);
         process.exit(0);
-    };
-    process.on("SIGTERM", cleanup);
-    process.on("SIGINT", cleanup);
+    });
 
     const errorHandler = new ConsoleErrorHandler();
     const uvRunner = new ClaudeCodeUvRunner();
@@ -128,7 +121,9 @@ export async function runDaemonScoped(opts: RunDaemonOptions): Promise<never> {
         logger.info(`No settings paths for scope=${opts.scope}`);
     } else if (opts.scope === "managed") {
         const existing = (
-            await Promise.all(settingsFiles.map(async p => ((await fileExists(p)) ? p : undefined)))
+            await Promise.all(
+                settingsFiles.map(async p => ((await fileExists(p)) ? p : undefined))
+            )
         ).filter((p): p is string => Boolean(p));
         if (existing.length) {
             await hooksMonitor.startMonitoring(existing);

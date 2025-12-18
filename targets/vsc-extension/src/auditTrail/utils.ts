@@ -186,7 +186,7 @@ export function groupByPromptId(entries: AuditEntry[]): import("./types").Prompt
 
         // Split into sub-groups on prompt_submission events
         let currentSubGroup: AuditEntry[] = [];
-        
+
         for (const entry of groupEntries) {
             if (entry.event_type === "prompt_submission" && currentSubGroup.length > 0) {
                 // Create a group for accumulated entries before this prompt_submission
@@ -202,7 +202,7 @@ export function groupByPromptId(entries: AuditEntry[]): import("./types").Prompt
                 currentSubGroup.push(entry);
             }
         }
-        
+
         // Add the final sub-group if it has entries
         if (currentSubGroup.length > 0) {
             promptGroups.push({
@@ -226,13 +226,17 @@ export function groupByPromptId(entries: AuditEntry[]): import("./types").Prompt
 /**
  * Nest orphaned tool call groups (without prompt_submission) under matching prompt_submission groups
  */
-function nestOrphanedGroups(groups: import("./types").PromptGroup[]): import("./types").PromptGroup[] {
+function nestOrphanedGroups(
+    groups: import("./types").PromptGroup[]
+): import("./types").PromptGroup[] {
     // Separate groups with and without prompt_submission
     const groupsWithSubmission: import("./types").PromptGroup[] = [];
     const orphanedGroups: import("./types").PromptGroup[] = [];
 
     for (const group of groups) {
-        const hasSubmission = group.entries.some(e => e.event_type === "prompt_submission");
+        const hasSubmission = group.entries.some(
+            e => e.event_type === "prompt_submission"
+        );
         if (hasSubmission) {
             groupsWithSubmission.push(group);
         } else {
@@ -251,17 +255,19 @@ function nestOrphanedGroups(groups: import("./types").PromptGroup[]): import("./
 
         for (const group of groupsWithSubmission) {
             const groupTimestamp = new Date(group.timestamp).getTime();
-            
+
             // Must come before the orphan
             if (groupTimestamp >= orphanTimestamp) {
                 continue;
             }
 
             // Check for exact prompt match
-            const submissionEntry = group.entries.find(e => e.event_type === "prompt_submission");
+            const submissionEntry = group.entries.find(
+                e => e.event_type === "prompt_submission"
+            );
             if (submissionEntry) {
                 const submissionPrompt = submissionEntry.data?.params?.prompt;
-                
+
                 if (submissionPrompt === orphanPrompt) {
                     const timeDiff = orphanTimestamp - groupTimestamp;
                     if (timeDiff < closestTimeDiff) {
@@ -292,7 +298,9 @@ function nestOrphanedGroups(groups: import("./types").PromptGroup[]): import("./
     }
 
     return groups.filter(group => {
-        const hasSubmission = group.entries.some(e => e.event_type === "prompt_submission");
+        const hasSubmission = group.entries.some(
+            e => e.event_type === "prompt_submission"
+        );
         if (hasSubmission) {
             return true; // Keep all groups with prompt_submission
         }

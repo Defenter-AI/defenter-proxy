@@ -1,6 +1,6 @@
-import { mkdirSync, writeFileSync } from "fs";
-import { dirname, join } from "path";
+import { join } from "path";
 import { homedir } from "os";
+import { writePidFile, setupDaemonSignalHandlers } from "@defenter/common-ts/daemon";
 
 /**
  * Daemonize the process for background execution
@@ -8,21 +8,13 @@ import { homedir } from "os";
 export function daemonize(): void {
     const pidFile = join(homedir(), ".defenter", "jamf.pid");
 
-    try {
-        mkdirSync(dirname(pidFile), { recursive: true });
-    } catch {
-        // Ignore if already exists
-    }
-    writeFileSync(pidFile, process.pid.toString(), "utf8");
+    writePidFile(pidFile);
 
     console.log(`Jamf monitor daemonized with PID ${process.pid}`);
     console.log(`PID file: ${pidFile}`);
 
-    const cleanup = () => {
+    setupDaemonSignalHandlers(() => {
         console.log("Shutting down jamf monitor...");
         process.exit(0);
-    };
-
-    process.on("SIGTERM", cleanup);
-    process.on("SIGINT", cleanup);
+    });
 }

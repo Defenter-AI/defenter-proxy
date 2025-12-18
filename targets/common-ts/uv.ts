@@ -5,6 +5,8 @@ import { join, sep } from "path";
 import { IUvRunner, ILogger, UvCommand } from "./types";
 import { fileExists, mapOS } from "./utils";
 
+const LOCAL_BIN_PATH = join(homedir(), ".local", "bin");
+
 /**
  * Get UV command with local development path support.
  * If DEFENTER_LOCAL_PROXY_PATH is set, uses local proxy for development.
@@ -13,7 +15,12 @@ export function getUvCommand(version: string, uvxExecutable = "uvx"): UvCommand 
     if (process.env.DEFENTER_LOCAL_PROXY_PATH) {
         return {
             executable: "uv",
-            args: ["run", "--directory", process.env.DEFENTER_LOCAL_PROXY_PATH, "defenter-proxy"],
+            args: [
+                "run",
+                "--directory",
+                process.env.DEFENTER_LOCAL_PROXY_PATH,
+                "defenter-proxy",
+            ],
         };
     }
 
@@ -40,11 +47,10 @@ export class SimpleUvRunner implements IUvRunner {
 }
 
 function addLocalBinToPath(): void {
-    const localBin = join(homedir(), ".local", "bin");
     const current = process.env.PATH ?? "";
     const pathSep = mapOS() === "windows" ? ";" : ":";
-    if (!current.split(pathSep).includes(localBin)) {
-        process.env.PATH = `${localBin}${pathSep}${current}`;
+    if (!current.split(pathSep).includes(LOCAL_BIN_PATH)) {
+        process.env.PATH = `${LOCAL_BIN_PATH}${pathSep}${current}`;
     }
 }
 
@@ -67,10 +73,9 @@ async function commandExists(command: string): Promise<boolean> {
 
 async function findUvxBinary(): Promise<string | undefined> {
     const isWindows = mapOS() === "windows";
-    const localBinPath = join(homedir(), ".local", "bin");
     const candidates = isWindows
-        ? ["uvx.exe", "uvx", join(localBinPath, "uvx.exe")]
-        : ["uvx", join(localBinPath, "uvx")];
+        ? ["uvx.exe", "uvx", join(LOCAL_BIN_PATH, "uvx.exe")]
+        : ["uvx", join(LOCAL_BIN_PATH, "uvx")];
 
     for (const candidate of candidates) {
         if (await commandExists(candidate)) {
@@ -98,11 +103,17 @@ function spawnProcess(command: string, args: string[], logger: ILogger): Promise
     return new Promise((resolve, reject) => {
         const proc = spawn(command, args, { stdio: "pipe", shell: false });
         proc.stdout?.on("data", data => {
-            const lines = data.toString().split("\n").filter((l: string) => l.trim());
+            const lines = data
+                .toString()
+                .split("\n")
+                .filter((l: string) => l.trim());
             lines.forEach((line: string) => logger.debug(`[uvx-setup] ${line.trim()}`));
         });
         proc.stderr?.on("data", data => {
-            const lines = data.toString().split("\n").filter((l: string) => l.trim());
+            const lines = data
+                .toString()
+                .split("\n")
+                .filter((l: string) => l.trim());
             lines.forEach((line: string) => logger.debug(`[uvx-setup] ${line.trim()}`));
         });
         proc.on("close", code => resolve(code ?? 0));
@@ -166,4 +177,3 @@ export async function ensureUvxReady(opts: EnsureUvxOptions): Promise<string> {
 
     return uvxBinary;
 }
-

@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from "child_process";
 import { parseClaudeHookJson } from "@defenter/common-ts/utils";
-import {
-    ensureDaemonRunning,
-    sessionStart,
-} from "./session-start";
+import { ensureDaemonRunning, sessionStart } from "./session-start";
 import { parseRunDaemonOptions, runDaemonScoped } from "./daemon";
 import { ClaudeCodeLogger } from "./logger";
 import { ClaudeCodeUvRunner } from "./uvRunner";
@@ -26,7 +23,10 @@ async function main(logger: ClaudeCodeLogger) {
 
             const stdin = await readAllStdin();
             const parsed = parseClaudeHookJson(stdin);
-            const cwd = typeof parsed?.cwd === "string" && parsed.cwd ? parsed.cwd : process.cwd();
+            const cwd =
+                typeof parsed?.cwd === "string" && parsed.cwd
+                    ? parsed.cwd
+                    : process.cwd();
             ensureDaemonRunning("managed", undefined, stdin);
             ensureDaemonRunning("user", undefined, stdin);
             ensureDaemonRunning("project", cwd, stdin);
@@ -70,7 +70,9 @@ main(logger).catch(error => {
 function readAllStdin(): Promise<Buffer> {
     return new Promise(resolve => {
         const chunks: Buffer[] = [];
-        process.stdin.on("data", c => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+        process.stdin.on("data", c =>
+            chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c))
+        );
         process.stdin.on("end", () => resolve(Buffer.concat(chunks)));
         process.stdin.on("error", () => resolve(Buffer.alloc(0)));
         // If no stdin is piped, Node may not emit end; resolve quickly.

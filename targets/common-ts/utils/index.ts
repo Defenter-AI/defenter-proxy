@@ -1,4 +1,10 @@
-import * as JSONC from "jsonc-parser";
+import {
+    parse as jsoncParse,
+    ParseError,
+    printParseErrorCode,
+    modify as jsoncModify,
+    applyEdits as jsoncApplyEdits,
+} from "jsonc-parser";
 import fs from "fs";
 import path, { normalize, resolve } from "path";
 import os from "os";
@@ -30,14 +36,14 @@ export async function writeFile(filePath: string, content: string): Promise<any>
 export function parseJsonc(text: string): any {
     try {
         // Use jsonc-parser for consistent JSONC handling - no fallbacks
-        const parseErrors: JSONC.ParseError[] = [];
-        const result = JSONC.parse(text, parseErrors);
+        const parseErrors: ParseError[] = [];
+        const result = jsoncParse(text, parseErrors);
 
         if (parseErrors.length > 0) {
             const errorMessages = parseErrors
                 .map(
                     err =>
-                        `Error at offset ${err.offset}: ${JSONC.printParseErrorCode(err.error)}`
+                        `Error at offset ${err.offset}: ${printParseErrorCode(err.error)}`
                 )
                 .join(", ");
             throw new Error(`JSONC parsing failed: ${errorMessages}`);
@@ -298,10 +304,10 @@ export async function updateJsoncFile(
         let newContent: string;
         if (originalContent) {
             // Use jsonc-parser to modify while preserving comments
-            const edits = JSONC.modify(originalContent, [], updatedConfig, {
+            const edits = jsoncModify(originalContent, [], updatedConfig, {
                 formattingOptions: { tabSize: 2, insertSpaces: true },
             });
-            newContent = JSONC.applyEdits(originalContent, edits);
+            newContent = jsoncApplyEdits(originalContent, edits);
         } else {
             // New file - just stringify
             newContent = JSON.stringify(updatedConfig, null, 2);

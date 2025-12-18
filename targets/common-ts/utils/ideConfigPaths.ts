@@ -1,22 +1,10 @@
 import { join } from "path";
 import { mapOS } from "./index";
-
-function getClaudeCodeManagedMcpPath(): string | undefined {
-    switch (mapOS()) {
-        case "macos":
-            return "/Library/Application Support/ClaudeCode/managed-mcp.json";
-        case "linux":
-            return "/etc/claude-code/managed-mcp.json";
-        case "windows":
-            return "C:\\Program Files\\ClaudeCode\\managed-mcp.json";
-        default:
-            return undefined;
-    }
-}
+import { getClaudeManagedMcpPath } from "./claude";
 
 /**
  * Get standard system paths for different AI client IDE configurations
- * 
+ *
  * @param homeDir - User's home directory path
  * @returns Record mapping IDE names to their config file paths
  */
@@ -38,7 +26,7 @@ export function getIdeSystemConfigPaths(homeDir: string): Record<string, string[
         windsurf: createPaths("windsurf", appSupportPaths("Windsurf")),
         "claude-code": [
             ...createPaths("claude"),
-            ...(getClaudeCodeManagedMcpPath() ? [getClaudeCodeManagedMcpPath()!] : []),
+            ...(getClaudeManagedMcpPath() ? [getClaudeManagedMcpPath()!] : []),
         ],
         vscode: createPaths("vscode", appSupportPaths("Code")),
         cline: createPaths("cline", appSupportPaths("Cline")),
@@ -56,7 +44,9 @@ export function getGlobalMcpConfigPaths(): Record<string, string[]> {
         case "macos":
             return {
                 cursor: ["/Library/Application Support/Cursor/mcp.json"],
-                "claude-code": ["/Library/Application Support/ClaudeCode/managed-mcp.json"],
+                "claude-code": [
+                    "/Library/Application Support/ClaudeCode/managed-mcp.json",
+                ],
             };
         case "windows":
             return {
@@ -67,4 +57,3 @@ export function getGlobalMcpConfigPaths(): Record<string, string[]> {
             return {};
     }
 }
-

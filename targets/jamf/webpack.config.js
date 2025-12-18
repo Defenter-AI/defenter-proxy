@@ -22,12 +22,7 @@ module.exports = {
         rules: [
             {
                 test: /\.ts$/,
-                exclude: [
-                    /node_modules/,
-                    /\.test\.ts$/,
-                    /tests\//,
-                    /__tests__\//,
-                ],
+                exclude: [/node_modules/, /\.test\.ts$/, /tests\//, /__tests__\//],
                 use: [
                     {
                         loader: "ts-loader",
@@ -60,8 +55,14 @@ module.exports = {
         new CopyWebpackPlugin({
             patterns: [
                 {
-                    from: path.resolve(__dirname, "../scripts/cursor/hooks/defenter-cursor-hook.sh"),
-                    to: path.resolve(__dirname, "dist/scripts/cursor/hooks/defenter-cursor-hook.sh"),
+                    from: path.resolve(
+                        __dirname,
+                        "../scripts/cursor/hooks/defenter-cursor-hook.sh"
+                    ),
+                    to: path.resolve(
+                        __dirname,
+                        "dist/scripts/cursor/hooks/defenter-cursor-hook.sh"
+                    ),
                 },
                 {
                     from: path.resolve(__dirname, "../scripts/setup-uvx-macos.sh"),
@@ -76,7 +77,10 @@ module.exports = {
                     to: path.resolve(__dirname, "dist/ai.defenter.jamf.plist"),
                 },
                 {
-                    from: path.resolve(__dirname, "../claude-code-plugin/hooks/hooks.json"),
+                    from: path.resolve(
+                        __dirname,
+                        "../claude-code-plugin/hooks/hooks.json"
+                    ),
                     to: path.resolve(__dirname, "dist/hooks/hooks.json"),
                 },
             ],
@@ -84,4 +88,3 @@ module.exports = {
     ],
     devtool: false,
 };
-

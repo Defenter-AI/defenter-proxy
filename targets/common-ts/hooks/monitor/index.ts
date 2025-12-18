@@ -1,7 +1,17 @@
 import { basename, dirname, join, normalize } from "path";
 import { promises as fs } from "fs";
-import { ClaudeCodeHooksConfig, ClaudeCodeSettingsConfig, CursorHooksConfig } from "./types";
-import { fileExists, mapOS, parseJsonc, samePath, updateJsoncFile } from "@defenter/common-ts/utils";
+import {
+    ClaudeCodeHooksConfig,
+    ClaudeCodeSettingsConfig,
+    CursorHooksConfig,
+} from "./types";
+import {
+    fileExists,
+    mapOS,
+    parseJsonc,
+    samePath,
+    updateJsoncFile,
+} from "@defenter/common-ts/utils";
 import { FileWatcher } from "@defenter/common-ts/watcher";
 import { IErrorHandler, ILogger } from "@defenter/common-ts/types";
 
@@ -288,11 +298,7 @@ export class ClaudeCodeHooksMonitor {
     private isMonitoring: boolean = false;
     private cachedHooksConfig: ClaudeCodeHooksConfig | undefined;
 
-    constructor(
-        hooksJsonPath: string,
-        errorHandler: IErrorHandler,
-        logger: ILogger
-    ) {
+    constructor(hooksJsonPath: string, errorHandler: IErrorHandler, logger: ILogger) {
         this.hooksJsonPath = hooksJsonPath;
         this.errorHandler = errorHandler;
         this.logger = logger;
@@ -354,7 +360,10 @@ export class ClaudeCodeHooksMonitor {
             await this.fileWatcher.startWatching(watchable);
             this.logger.info("Claude Code Hooks: Monitoring started successfully");
         } catch (error) {
-            this.logger.error("Claude Code Hooks: Failed to start hooks monitoring", error);
+            this.logger.error(
+                "Claude Code Hooks: Failed to start hooks monitoring",
+                error
+            );
             await this.stopMonitoring();
         }
     }
@@ -388,31 +397,34 @@ export class ClaudeCodeHooksMonitor {
                     continue;
                 }
 
-                await updateJsoncFile(settingsPath, (config: ClaudeCodeSettingsConfig) => {
-                    if (!config.hooks) {
+                await updateJsoncFile(
+                    settingsPath,
+                    (config: ClaudeCodeSettingsConfig) => {
+                        if (!config.hooks) {
+                            return config;
+                        }
+
+                        for (const hookName of Object.keys(hooksConfig.hooks)) {
+                            if (!config.hooks[hookName]) {
+                                continue;
+                            }
+
+                            config.hooks[hookName] = config.hooks[hookName].filter(
+                                entry => !this.isDefenterHookEntry(entry)
+                            );
+
+                            if (!config.hooks[hookName].length) {
+                                delete config.hooks[hookName];
+                            }
+                        }
+
+                        if (Object.keys(config.hooks).length === 0) {
+                            delete config.hooks;
+                        }
+
                         return config;
                     }
-
-                    for (const hookName of Object.keys(hooksConfig.hooks)) {
-                        if (!config.hooks[hookName]) {
-                            continue;
-                        }
-
-                        config.hooks[hookName] = config.hooks[hookName].filter(
-                            entry => !this.isDefenterHookEntry(entry)
-                        );
-
-                        if (!config.hooks[hookName].length) {
-                            delete config.hooks[hookName];
-                        }
-                    }
-
-                    if (Object.keys(config.hooks).length === 0) {
-                        delete config.hooks;
-                    }
-
-                    return config;
-                });
+                );
 
                 this.fileWatcher.recordWrite(settingsPath);
 
@@ -432,7 +444,8 @@ export class ClaudeCodeHooksMonitor {
         return entry.hooks?.some(
             (h: any) =>
                 h.type === "command" &&
-                (h.command?.includes("defenter-proxy") || h.command?.includes("launcher.js"))
+                (h.command?.includes("defenter-proxy") ||
+                    h.command?.includes("launcher.js"))
         );
     }
 
@@ -493,9 +506,7 @@ export class ClaudeCodeHooksMonitor {
 
             this.fileWatcher.recordWrite(settingsPath);
 
-            this.logger.info(
-                `Claude Code Hooks: Registered hooks in ${settingsPath}`
-            );
+            this.logger.info(`Claude Code Hooks: Registered hooks in ${settingsPath}`);
         } catch (error) {
             this.logger.error(
                 `Claude Code Hooks: Failed to register hooks in ${settingsPath}`,

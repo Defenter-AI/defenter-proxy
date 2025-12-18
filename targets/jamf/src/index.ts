@@ -1,5 +1,8 @@
 import { ConfigurationMonitor } from "@defenter/common-ts/mcp/monitor";
-import { ClaudeCodeHooksMonitor, CursorHooksMonitor } from "@defenter/common-ts/hooks/monitor";
+import {
+    ClaudeCodeHooksMonitor,
+    CursorHooksMonitor,
+} from "@defenter/common-ts/hooks/monitor";
 import { initialize as initializeHooks } from "@defenter/common-ts/hooks/initialize";
 import { ConsoleLogger } from "@defenter/common-ts/console";
 import { SimpleUvRunner } from "@defenter/common-ts/uv";
@@ -8,7 +11,10 @@ import {
     buildCursorHooksInitInput,
 } from "@defenter/common-ts/utils";
 import { JamfConfigDiscoverer } from "./configDiscoverer";
-import { discoverAllClaudeCodeSettingsFiles, discoverAllCursorHooksFiles } from "./hooksDiscoverer";
+import {
+    discoverAllClaudeCodeSettingsFiles,
+    discoverAllCursorHooksFiles,
+} from "./hooksDiscoverer";
 import { JamfErrorHandler } from "./errorHandler";
 import { daemonize } from "./daemon";
 import { VERSION } from "./version";
@@ -33,7 +39,11 @@ async function main() {
     const cursorDiscoverer = new JamfConfigDiscoverer("cursor");
     await cursorConfigMonitor.startMonitoring(uvRunner, cursorDiscoverer);
 
-    const claudeConfigMonitor = new ConfigurationMonitor(errorHandler, logger, "claude-code");
+    const claudeConfigMonitor = new ConfigurationMonitor(
+        errorHandler,
+        logger,
+        "claude-code"
+    );
     const claudeDiscoverer = new JamfConfigDiscoverer("claude-code");
     await claudeConfigMonitor.startMonitoring(uvRunner, claudeDiscoverer);
 
@@ -55,7 +65,11 @@ async function main() {
     const jamfExtensionRoot = process.env.DEFENTER_EXTENSION_PATH ?? __dirname;
 
     // Start monitoring all Cursor hooks files
-    const cursorHooksMonitor = new CursorHooksMonitor(jamfExtensionRoot, errorHandler, logger);
+    const cursorHooksMonitor = new CursorHooksMonitor(
+        jamfExtensionRoot,
+        errorHandler,
+        logger
+    );
     await cursorHooksMonitor.startMonitoring(Array.from(cursorHooksFiles.keys()));
 
     logger.info("Cursor hooks monitoring started successfully");
@@ -76,7 +90,11 @@ async function main() {
     );
 
     const claudeHooksJsonPath = join(jamfExtensionRoot, "hooks", "hooks.json");
-    const claudeHooksMonitor = new ClaudeCodeHooksMonitor(claudeHooksJsonPath, errorHandler, logger);
+    const claudeHooksMonitor = new ClaudeCodeHooksMonitor(
+        claudeHooksJsonPath,
+        errorHandler,
+        logger
+    );
     await claudeHooksMonitor.startMonitoring(Array.from(claudeSettingsFiles.keys()));
 
     logger.info("Claude Code hooks monitoring started successfully");
