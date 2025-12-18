@@ -2,6 +2,9 @@ import { join, normalize, resolve } from "path";
 import { IConfigDiscoverer } from "@defenter/common-ts/types";
 import {
     fileExists,
+    getClaudeManagedMcpPath,
+    getClaudeProjectMcpConfigPaths,
+    getClaudeUserMcpConfigPath,
     getGlobalMcpConfigPaths,
     getIdeSystemConfigPaths,
     isAccessError,
@@ -41,63 +44,82 @@ async function collectIdeSystemConfigs(
  * Discovers MCP config files across all IDE workspaces for all users
  */
 export class JamfConfigDiscoverer implements IConfigDiscoverer {
+    private readonly ide: string;
+
+    constructor(ide: string) {
+        if (ide !== "cursor" && ide !== "claude-code") {
+            throw new Error(`Invalid ide: ${ide}`);
+        }
+        this.ide = ide;
+    }
+
     async discoverConfigFiles(): Promise<string[]> {
         const configs: string[] = [];
 
-        // Discover Cursor configs
-        const cursorUsers = await listCursorUsers();
+        switch (this.ide) {
+            case "cursor": {
+                const cursorUsers = await listCursorUsers();
 
-        for (const user of cursorUsers) {
-            try {
-                const workspaces = await parseCursorWorkspaces(user.homeDir);
+                for (const user of cursorUsers) {
+                    try {
+                        const workspaces = await parseCursorWorkspaces(user.homeDir);
 
-                for (const workspace of workspaces) {
-                    await collectExistingPaths(
-                        [
-                            join(workspace, ".cursor", "mcp.json"),
-                            join(workspace, "mcp.json"),
-                            join(workspace, ".mcp.json"),
-                        ],
-                        configs
-                    );
+                        for (const workspace of workspaces) {
+                            await collectExistingPaths(
+                                [
+                                    join(workspace, ".cursor", "mcp.json"),
+                                    join(workspace, "mcp.json"),
+                                    join(workspace, ".mcp.json"),
+                                ],
+                                configs
+                            );
+                        }
+                    } catch (error: any) {
+                        if (isAccessError(error)) continue;
+                        throw error;
+                    }
                 }
-            } catch (error: any) {
-                if (isAccessError(error)) continue;
-                throw error;
+
+                await collectIdeSystemConfigs(cursorUsers, "cursor", configs);
+
+                const globalPaths = getGlobalMcpConfigPaths();
+                await collectExistingPaths(globalPaths.cursor || [], configs);
+                break;
+            }
+            case "claude-code": {
+                const claudeUsers = await listClaudeUsers();
+
+                for (const user of claudeUsers) {
+                    try {
+                        await collectExistingPaths(
+                            [getClaudeUserMcpConfigPath(user.homeDir)],
+                            configs
+                        );
+                        const projects = await parseClaudeProjects(user.homeDir);
+
+                        for (const project of projects) {
+                            await collectExistingPaths(
+                                getClaudeProjectMcpConfigPaths(project),
+                                configs
+                            );
+                        }
+                    } catch (error: any) {
+                        if (isAccessError(error)) continue;
+                        throw error;
+                    }
+                }
+
+                await collectIdeSystemConfigs(claudeUsers, "claude-code", configs);
+
+                const globalPaths = getGlobalMcpConfigPaths();
+                await collectExistingPaths(globalPaths["claude-code"] || [], configs);
+                const claudeManagedMcp = getClaudeManagedMcpPath();
+                if (claudeManagedMcp) {
+                    await collectExistingPaths([claudeManagedMcp], configs);
+                }
+                break;
             }
         }
-
-        await collectIdeSystemConfigs(cursorUsers, "cursor", configs);
-
-        // Discover Claude Code configs
-        const claudeUsers = await listClaudeUsers();
-
-        for (const user of claudeUsers) {
-            try {
-                const projects = await parseClaudeProjects(user.homeDir);
-
-                for (const project of projects) {
-                    await collectExistingPaths(
-                        [
-                            join(project, ".claude", "mcp.json"),
-                            join(project, "mcp.json"),
-                            join(project, ".mcp.json"),
-                        ],
-                        configs
-                    );
-                }
-            } catch (error: any) {
-                if (isAccessError(error)) continue;
-                throw error;
-            }
-        }
-
-        await collectIdeSystemConfigs(claudeUsers, "claude", configs);
-
-        // Discover global/enterprise configs
-        const globalPaths = getGlobalMcpConfigPaths();
-        await collectExistingPaths(globalPaths.cursor || [], configs);
-        await collectExistingPaths(globalPaths.claude || [], configs);
 
         return Array.from(new Set(configs.map(p => normalize(p))));
     }

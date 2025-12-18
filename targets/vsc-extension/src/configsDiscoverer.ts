@@ -39,7 +39,7 @@ export class VscodeConfigDiscoverer implements IConfigDiscoverer {
                     antigravity: [getClientWorkspacePath("vscode")],
                     cursor: [getClientWorkspacePath("cursor")],
                     windsurf: [getClientWorkspacePath("windsurf")],
-                    claude: [getClientWorkspacePath("claude")],
+                    "claude-code": [getClientWorkspacePath("claude")],
                     vscode: [getClientWorkspacePath("vscode")],
                     cline: [getClientWorkspacePath("cline")],
                 };
@@ -88,7 +88,7 @@ export class VscodeConfigDiscoverer implements IConfigDiscoverer {
             { name: "cursor", patterns: ["cursor"] },
             { name: "antigravity", patterns: ["antigravity"] },
             { name: "windsurf", patterns: ["windsurf"] },
-            { name: "claude", patterns: ["claude"] },
+            { name: "claude-code", patterns: ["claude"] },
             { name: "kiro", patterns: ["kiro"] },
             { name: "cline", patterns: ["cline"] },
             {

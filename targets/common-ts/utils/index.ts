@@ -487,12 +487,19 @@ export {
     listCursorUsers,
     getCursorGlobalHooksPath,
     getCursorUserHooksPath,
+    buildCursorHooksInitInput,
     parseCursorWorkspaces,
 } from "./cursor";
 export {
     listClaudeUsers,
-    getClaudeGlobalSettingsPath,
+    getClaudeProjectMcpConfigPaths,
+    getClaudeUserMcpConfigPath,
+    getClaudeProjectSettingsPaths,
+    getClaudeManagedSettingsPath,
+    getClaudeManagedMcpPath,
     getClaudeUserSettingsPath,
+    buildClaudeCodeHooksInitInput,
+    parseClaudeHookJson,
     parseClaudeProjects,
 } from "./claude";
 export { OSUser } from "../types";

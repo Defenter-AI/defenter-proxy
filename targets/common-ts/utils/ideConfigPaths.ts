@@ -1,6 +1,19 @@
 import { join } from "path";
 import { mapOS } from "./index";
 
+function getClaudeCodeManagedMcpPath(): string | undefined {
+    switch (mapOS()) {
+        case "macos":
+            return "/Library/Application Support/ClaudeCode/managed-mcp.json";
+        case "linux":
+            return "/etc/claude-code/managed-mcp.json";
+        case "windows":
+            return "C:\\Program Files\\ClaudeCode\\managed-mcp.json";
+        default:
+            return undefined;
+    }
+}
+
 /**
  * Get standard system paths for different AI client IDE configurations
  * 
@@ -23,10 +36,10 @@ export function getIdeSystemConfigPaths(homeDir: string): Record<string, string[
         antigravity: createPaths("antigravity", appSupportPaths("Antigravity")),
         cursor: createPaths("cursor", appSupportPaths("Cursor")),
         windsurf: createPaths("windsurf", appSupportPaths("Windsurf")),
-        claude: createPaths("claude", [
-            join("Library", "Application Support", "Claude"), // macOS (no User subdir)
-            join("AppData", "Roaming", "Claude"), // Windows (no User subdir)
-        ]),
+        "claude-code": [
+            ...createPaths("claude"),
+            ...(getClaudeCodeManagedMcpPath() ? [getClaudeCodeManagedMcpPath()!] : []),
+        ],
         vscode: createPaths("vscode", appSupportPaths("Code")),
         cline: createPaths("cline", appSupportPaths("Cline")),
     };
@@ -43,12 +56,12 @@ export function getGlobalMcpConfigPaths(): Record<string, string[]> {
         case "macos":
             return {
                 cursor: ["/Library/Application Support/Cursor/mcp.json"],
-                claude: ["/Library/Application Support/Claude/mcp.json"],
+                "claude-code": ["/Library/Application Support/ClaudeCode/managed-mcp.json"],
             };
         case "windows":
             return {
                 cursor: ["C:\\ProgramData\\Cursor\\mcp.json"],
-                claude: ["C:\\ProgramData\\Claude\\mcp.json"],
+                "claude-code": ["C:\\Program Files\\ClaudeCode\\managed-mcp.json"],
             };
         default:
             return {};

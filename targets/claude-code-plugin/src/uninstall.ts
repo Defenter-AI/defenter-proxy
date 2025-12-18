@@ -1,14 +1,15 @@
 import { ConfigurationMonitor } from "@defenter/common-ts/mcp/monitor";
 import { ClaudeCodeHooksMonitor } from "@defenter/common-ts/hooks/monitor";
+import { ConsoleErrorHandler } from "@defenter/common-ts/console";
 import {
-    getClaudeGlobalSettingsPath,
+    getClaudeManagedSettingsPath,
     getClaudeUserSettingsPath,
 } from "@defenter/common-ts/utils";
 import { ClaudeCodeLogger } from "./logger";
-import { ClaudeCodeErrorHandler } from "./errorHandler";
 import { reportLifecycleEvent } from "./api";
 import { promises as fs } from "fs";
 import { join } from "path";
+import { getClaudePluginRoot } from "./paths";
 
 async function main() {
     const logger = new ClaudeCodeLogger();
@@ -21,8 +22,8 @@ async function main() {
     }
 
     try {
-        const errorHandler = new ClaudeCodeErrorHandler();
-        const configMonitor = new ConfigurationMonitor(errorHandler, logger, "claude");
+        const errorHandler = new ConsoleErrorHandler();
+        const configMonitor = new ConfigurationMonitor(errorHandler, logger, "claude-code");
 
         // 1. Unwrap MCP configurations
         const filesToUnwrap = await configMonitor.getAllWrappedFiles();
@@ -49,7 +50,7 @@ async function main() {
         logger.info("Cleaning up Claude Code hooks...");
         try {
             const hooksJsonPath = join(
-                process.env.CLAUDE_PLUGIN_ROOT || __dirname,
+                getClaudePluginRoot(),
                 "hooks",
                 "hooks.json"
             );
@@ -60,7 +61,7 @@ async function main() {
             );
 
             const settingsFiles = [getClaudeUserSettingsPath()];
-            const globalSettings = getClaudeGlobalSettingsPath();
+            const globalSettings = getClaudeManagedSettingsPath();
             if (globalSettings) {
                 settingsFiles.push(globalSettings);
             }

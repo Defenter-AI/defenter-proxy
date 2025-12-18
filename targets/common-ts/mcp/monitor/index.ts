@@ -207,7 +207,15 @@ export class ConfigurationMonitor {
             for (const configFile of configFiles) {
                 const normalizedPath = normalize(resolve(configFile));
                 if (!this.fileWatcher.isProcessing(normalizedPath)) {
-                    await this.processConfigurationFile(configFile);
+                    try {
+                        await this.processConfigurationFile(configFile);
+                    } catch (error) {
+                        // per-file failure must not stop monitoring other config files
+                        this.logger.error(
+                            `Failed to process configuration on startup: ${configFile}`,
+                            error
+                        );
+                    }
                 }
             }
         } catch (error) {

@@ -30,6 +30,16 @@ export function getCursorUserHooksPath(): string {
     return join(homedir(), ".cursor", "hooks.json");
 }
 
+export function buildCursorHooksInitInput(workspaceRoots: string[]): string {
+    const nowId = `${Date.now()}`.slice(-8);
+    return JSON.stringify({
+        conversation_id: nowId,
+        generation_id: nowId,
+        hook_event_name: "init",
+        workspace_roots: workspaceRoots,
+    });
+}
+
 /**
  * Parse Cursor's workspace storage to discover all workspaces
  * Works on macOS by reading Cursor's storage files

@@ -1,5 +1,5 @@
-import * as fs from "fs";
-import * as path from "path";
+import { promises as fs } from "fs";
+import { dirname, join } from "path";
 import * as vscode from "vscode";
 
 /**
@@ -81,13 +81,13 @@ export function getCurrentExtensionVersion(context: vscode.ExtensionContext): st
 }
 
 const getVersionFile = (context: vscode.ExtensionContext) =>
-    path.join(context.globalStorageUri.fsPath, ".installed_version");
+    join(context.globalStorageUri.fsPath, ".installed_version");
 
 export async function getLastStoredExtensionVersion(
     context: vscode.ExtensionContext
 ): Promise<string | undefined> {
     try {
-        const version = await fs.promises.readFile(getVersionFile(context), "utf8");
+        const version = await fs.readFile(getVersionFile(context), "utf8");
         return version.trim();
     } catch {
         return undefined; // File doesn't exist = first install
@@ -101,6 +101,6 @@ export async function updateStoredExtensionVersion(
     const versionFile = getVersionFile(context);
 
     // Ensure directory exists
-    await fs.promises.mkdir(path.dirname(versionFile), { recursive: true });
-    await fs.promises.writeFile(versionFile, currentVersion, "utf8");
+    await fs.mkdir(dirname(versionFile), { recursive: true });
+    await fs.writeFile(versionFile, currentVersion, "utf8");
 }

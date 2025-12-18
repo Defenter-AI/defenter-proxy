@@ -37,24 +37,87 @@ export async function parseClaudeProjects(userHomeDir: string): Promise<string[]
     return projects;
 }
 
-/**
- * Get the global/enterprise settings file path for Claude Code
- */
-export function getClaudeGlobalSettingsPath(): string | undefined {
-    const platform = mapOS();
-    switch (platform) {
+export function getClaudeProjectMcpConfigPaths(projectRoot: string): string[] {
+    return [
+        join(projectRoot, "mcp.json"),
+        join(projectRoot, ".mcp.json"),
+        join(projectRoot, ".claude", "mcp.json"),
+    ];
+}
+
+export function getClaudeUserMcpConfigPath(userHomeDir?: string): string {
+    return join(userHomeDir ?? homedir(), ".claude", "mcp.json");
+}
+
+export function getClaudeUserSettingsPath(userHomeDir?: string): string {
+    return join(userHomeDir ?? homedir(), ".claude", "settings.json");
+}
+
+export function getClaudeProjectSettingsPaths(projectRoot: string): string[] {
+    return [
+        join(projectRoot, ".claude", "settings.json"),
+        join(projectRoot, ".claude", "settings.local.json"),
+    ];
+}
+
+export function getClaudeManagedSettingsPath(): string | undefined {
+    switch (mapOS()) {
         case "macos":
             return "/Library/Application Support/ClaudeCode/managed-settings.json";
+        case "linux":
+            return "/etc/claude-code/managed-settings.json";
         case "windows":
-            return "C:\\ProgramData\\Claude\\managed-settings.json";
+            return "C:\\Program Files\\ClaudeCode\\managed-settings.json";
         default:
             return undefined;
     }
 }
 
-/**
- * Get the user-level settings file path for Claude Code
- */
-export function getClaudeUserSettingsPath(): string {
-    return join(homedir(), ".claude", "settings.json");
+export function getClaudeManagedMcpPath(): string | undefined {
+    switch (mapOS()) {
+        case "macos":
+            return "/Library/Application Support/ClaudeCode/managed-mcp.json";
+        case "linux":
+            return "/etc/claude-code/managed-mcp.json";
+        case "windows":
+            return "C:\\Program Files\\ClaudeCode\\managed-mcp.json";
+        default:
+            return undefined;
+    }
+}
+
+export function parseClaudeHookJson(stdin?: string | Buffer): any | undefined {
+    if (!stdin) {
+        return undefined;
+    }
+    try {
+        const text = Buffer.isBuffer(stdin) ? stdin.toString("utf8") : stdin;
+        if (!text.trim()) {
+            return undefined;
+        }
+        return JSON.parse(text);
+    } catch {
+        return undefined;
+    }
+}
+
+export function buildClaudeCodeHooksInitInput(opts: {
+    workspaceRoots: string[];
+    stdin?: string | Buffer;
+    cwdOverride?: string;
+}): string {
+    const nowId = `${Date.now()}`.slice(-8);
+    const parsed = parseClaudeHookJson(opts.stdin);
+    const sessionId =
+        (typeof parsed?.session_id === "string" && parsed.session_id) || nowId;
+    const cwd =
+        opts.cwdOverride ||
+        (typeof parsed?.cwd === "string" && parsed.cwd) ||
+        opts.workspaceRoots[0] ||
+        process.cwd();
+    return JSON.stringify({
+        hook_event_name: "SessionStart",
+        session_id: sessionId,
+        cwd,
+    });
 }

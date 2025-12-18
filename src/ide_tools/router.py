@@ -34,7 +34,7 @@ def main(logger: MCPLogger, audit_logger: AuditTrailLogger, ide: str, context: O
     # Each handler will parse it according to its own schema
     stdin_input = sys.stdin.read()
 
-    logger.info(f"{'=' * 66}\nIDE Tools router:\nide: {ide}\n\ncontext: {context}\n\nstdin: {stdin_input}\n{'=' * 66}")
+    logger.debug(f"{'=' * 66}\nIDE Tools router:\nide: {ide}\n\ncontext: {context}\n\nstdin: {stdin_input}\n{'=' * 66}")
 
     # Route to appropriate IDE handler with the raw input string
     if ide == "cursor":

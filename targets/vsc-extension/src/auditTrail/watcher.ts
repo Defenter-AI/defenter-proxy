@@ -13,7 +13,7 @@ import log from "../log";
 
 export class AuditTrailWatcher {
     private readonly auditFilePath: string;
-    private currentAppUid: string | null = null;
+    private currentAppUid: string | undefined;
     private fileWatcher: FileWatcher;
     private onChangeCallback: ((entries: AuditEntry[]) => void) | undefined;
 

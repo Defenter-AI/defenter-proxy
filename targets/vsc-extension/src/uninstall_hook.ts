@@ -23,7 +23,7 @@ async function main() {
         const configMonitor = new ConfigurationMonitor(errorHandler, logger, detectedIDE);
         if (!detectedIDE) {
             console.error(
-                "❌ Cannot detect IDE from script path - unsafe to proceed with cleanup"
+                "Cannot detect IDE from script path; aborting cleanup"
             );
             console.error("Script path:", __dirname);
             process.exit(1);
@@ -70,9 +70,9 @@ async function main() {
         }
 
         console.log(`\nMCP Configurations cleanup:`);
-        console.log(`  ✅ Successfully unwrapped: ${successCount}`);
-        console.log(`  ℹ️  No changes needed: ${skipCount}`);
-        console.log(`  ❌ Errors encountered: ${errorCount}`);
+        console.log(`  Successfully unwrapped: ${successCount}`);
+        console.log(`  No changes needed: ${skipCount}`);
+        console.log(`  Errors encountered: ${errorCount}`);
 
         // 2. Unregister Cursor hooks (if running in Cursor)
         const ideType = detectIDEFromScriptPath();
@@ -88,7 +88,7 @@ async function main() {
                         logger
                     );
                     await cursorHooksMonitor.unregisterHook([hooksFilePath]);
-                    console.log("✅ Cursor hooks unregistered");
+                    console.log("Cursor hooks unregistered");
                 } catch (error: any) {
                     console.error("Failed to unregister Cursor hooks:", error.message);
                     // Non-critical - continue with other cleanup
@@ -100,7 +100,7 @@ async function main() {
         try {
             const mcpsDir = configMonitor.getMcpsDir();
             await fs.rmdir(mcpsDir);
-            console.log("✅ MCP registry cleaned up");
+            console.log("MCP registry cleaned up");
         } catch (e) {
             console.error("MCP registry cleanup failed:", e);
             // ignore folder removal error; non-critical
@@ -108,7 +108,7 @@ async function main() {
 
         console.log("\nDefenter uninstall cleanup finished!");
     } catch (error) {
-        console.error("❌ Uninstall cleanup failed:", error);
+        console.error("Uninstall cleanup failed:", error);
         process.exit(1);
     }
 }

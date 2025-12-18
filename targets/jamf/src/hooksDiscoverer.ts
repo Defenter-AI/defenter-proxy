@@ -1,7 +1,8 @@
 import { join } from "path";
 import {
     fileExists,
-    getClaudeGlobalSettingsPath,
+    getClaudeManagedSettingsPath,
+    getClaudeUserSettingsPath,
     getCursorGlobalHooksPath,
     isAccessError,
     listClaudeUsers,
@@ -79,7 +80,7 @@ export async function discoverAllClaudeCodeSettingsFiles(): Promise<
         try {
             const projects = await parseClaudeProjects(user.homeDir);
 
-            const userSettingsPath = join(user.homeDir, ".claude", "settings.json");
+            const userSettingsPath = getClaudeUserSettingsPath(user.homeDir);
             if (await fileExists(userSettingsPath)) {
                 projectsBySettingsFile.set(userSettingsPath, projects);
             }
@@ -96,7 +97,7 @@ export async function discoverAllClaudeCodeSettingsFiles(): Promise<
         }
     }
 
-    const globalSettingsPath = getClaudeGlobalSettingsPath();
+    const globalSettingsPath = getClaudeManagedSettingsPath();
     if (globalSettingsPath && (await fileExists(globalSettingsPath))) {
         projectsBySettingsFile.set(globalSettingsPath, Array.from(allProjects));
     }

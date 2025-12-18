@@ -4,6 +4,7 @@ import { tmpdir } from "os";
 import { execSync, spawn } from "child_process";
 import { getStoredVersion, isDaemonRunning, saveVersion } from "./session-start";
 import { getClaudeDaemonPidPath, getClaudeVersionFilePath } from "./paths";
+import { ClaudeCodeConfigDiscoverer } from "./configDiscoverer";
 
 function isProcessRunning(pid: number): boolean {
     try {
@@ -34,25 +35,36 @@ describe("session-start", () => {
 
     describe("getClaudeDaemonPidPath", () => {
         it("returns path under .defenter/claude", () => {
-            const pidPath = getClaudeDaemonPidPath();
+            const pidPath = getClaudeDaemonPidPath("user");
             expect(pidPath).toContain(".defenter");
             expect(pidPath).toContain("claude");
-            expect(pidPath).toContain("daemon.pid");
+            expect(pidPath).toContain("daemons");
+            expect(pidPath).toContain("user.pid");
+        });
+
+        it("creates distinct pid paths for project roots", () => {
+            const r1 = "/tmp/defenter-proj-1";
+            const r2 = "/tmp/defenter-proj-2";
+            const p1 = getClaudeDaemonPidPath("project", r1);
+            const p2 = getClaudeDaemonPidPath("project", r2);
+            expect(p1).not.toBe(p2);
+            expect(p1).toContain("project-");
+            expect(p1).toContain(".pid");
         });
     });
 
     describe("isDaemonRunning", () => {
         it("returns false when PID file does not exist", () => {
             // Default state - no PID file
-            const pidPath = getClaudeDaemonPidPath();
+            const pidPath = getClaudeDaemonPidPath("user");
             if (existsSync(pidPath)) {
                 unlinkSync(pidPath);
             }
-            expect(isDaemonRunning()).toBe(false);
+            expect(isDaemonRunning("user")).toBe(false);
         });
 
         it("returns true when PID file exists and process is running", () => {
-            const pidPath = getClaudeDaemonPidPath();
+            const pidPath = getClaudeDaemonPidPath("user");
             const dir = join(pidPath, "..");
             mkdirSync(dir, { recursive: true });
 
@@ -60,34 +72,47 @@ describe("session-start", () => {
             writeFileSync(pidPath, process.pid.toString(), "utf8");
 
             try {
-                expect(isDaemonRunning()).toBe(true);
+                expect(isDaemonRunning("user")).toBe(true);
+            } finally {
+                unlinkSync(pidPath);
+            }
+        });
+
+        it("works per project root", () => {
+            const root = join(tmpdir(), `defenter-proj-${Date.now()}`);
+            const pidPath = getClaudeDaemonPidPath("project", root);
+            const dir = join(pidPath, "..");
+            mkdirSync(dir, { recursive: true });
+            writeFileSync(pidPath, process.pid.toString(), "utf8");
+            try {
+                expect(isDaemonRunning("project", root)).toBe(true);
             } finally {
                 unlinkSync(pidPath);
             }
         });
 
         it("returns false and cleans up stale PID file when process is not running", () => {
-            const pidPath = getClaudeDaemonPidPath();
+            const pidPath = getClaudeDaemonPidPath("user");
             const dir = join(pidPath, "..");
             mkdirSync(dir, { recursive: true });
 
             // Write a PID that definitely doesn't exist (very high number)
             writeFileSync(pidPath, "999999999", "utf8");
 
-            expect(isDaemonRunning()).toBe(false);
+            expect(isDaemonRunning("user")).toBe(false);
             // PID file should be cleaned up
             expect(existsSync(pidPath)).toBe(false);
         });
 
         it("returns false when PID file contains invalid data", () => {
-            const pidPath = getClaudeDaemonPidPath();
+            const pidPath = getClaudeDaemonPidPath("user");
             const dir = join(pidPath, "..");
             mkdirSync(dir, { recursive: true });
 
             writeFileSync(pidPath, "not-a-number", "utf8");
 
             try {
-                expect(isDaemonRunning()).toBe(false);
+                expect(isDaemonRunning("user")).toBe(false);
             } finally {
                 if (existsSync(pidPath)) {
                     unlinkSync(pidPath);
@@ -96,7 +121,7 @@ describe("session-start", () => {
         });
 
         it("correlates with actual ps verification", () => {
-            const pidPath = getClaudeDaemonPidPath();
+            const pidPath = getClaudeDaemonPidPath("user");
             const dir = join(pidPath, "..");
             mkdirSync(dir, { recursive: true });
 
@@ -105,7 +130,7 @@ describe("session-start", () => {
 
             try {
                 // Both isDaemonRunning and ps should agree
-                expect(isDaemonRunning()).toBe(true);
+                expect(isDaemonRunning("user")).toBe(true);
                 expect(isProcessRunning(process.pid)).toBe(true);
             } finally {
                 unlinkSync(pidPath);
@@ -115,7 +140,7 @@ describe("session-start", () => {
             writeFileSync(pidPath, "999999999", "utf8");
 
             // Both should agree it's not running
-            expect(isDaemonRunning()).toBe(false);
+            expect(isDaemonRunning("user")).toBe(false);
             expect(isProcessRunning(999999999)).toBe(false);
         });
     });
@@ -152,8 +177,24 @@ describe("session-start", () => {
     });
 });
 
+describe("claude-code config discoverer", () => {
+    it("discovers project MCP files under root", async () => {
+        const root = join(tmpdir(), `defenter-proj-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+        mkdirSync(join(root, ".claude"), { recursive: true });
+        writeFileSync(join(root, "mcp.json"), "{}", "utf8");
+        writeFileSync(join(root, ".claude", "mcp.json"), "{}", "utf8");
+
+        const d = new ClaudeCodeConfigDiscoverer("project", root);
+        const files = await d.discoverConfigFiles();
+        expect(files).toEqual(expect.arrayContaining([
+            join(root, "mcp.json"),
+            join(root, ".claude", "mcp.json"),
+        ]));
+    });
+});
+
 describe("daemon PID file integration", () => {
-    const pidPath = getClaudeDaemonPidPath();
+    const pidPath = getClaudeDaemonPidPath("user");
 
     afterEach(() => {
         if (existsSync(pidPath)) {
@@ -162,7 +203,7 @@ describe("daemon PID file integration", () => {
     });
 
     it("daemon writes PID file on start and cleans up on SIGTERM", async () => {
-        const pidPath = getClaudeDaemonPidPath();
+        const pidPath = getClaudeDaemonPidPath("user");
 
         // Clean up any existing PID file
         if (existsSync(pidPath)) {
@@ -202,7 +243,7 @@ describe("daemon PID file integration", () => {
             expect(writtenPid).toBe(mockDaemon.pid);
 
             // isDaemonRunning should return true
-            expect(isDaemonRunning()).toBe(true);
+            expect(isDaemonRunning("user")).toBe(true);
 
             // Send SIGTERM
             process.kill(mockDaemon.pid!, "SIGTERM");
@@ -212,7 +253,7 @@ describe("daemon PID file integration", () => {
 
             // PID file should be cleaned up
             expect(existsSync(pidPath)).toBe(false);
-            expect(isDaemonRunning()).toBe(false);
+            expect(isDaemonRunning("user")).toBe(false);
         } finally {
             // Ensure process is killed
             try {
@@ -253,14 +294,14 @@ describe("daemon PID file integration", () => {
 
         try {
             // Verify first daemon is running
-            expect(isDaemonRunning()).toBe(true);
+            expect(isDaemonRunning("user")).toBe(true);
             expect(isProcessRunning(daemon1.pid!)).toBe(true);
             const firstPid = parseInt(readFileSync(pidPath, "utf8").trim(), 10);
             expect(firstPid).toBe(daemon1.pid);
 
             // Simulate what session-start does: check before spawning
             // If isDaemonRunning() is true, it should NOT spawn another
-            const shouldSpawn = !isDaemonRunning();
+            const shouldSpawn = !isDaemonRunning("user");
             expect(shouldSpawn).toBe(false);
 
             // Verify only one process owns the PID file
@@ -299,7 +340,7 @@ describe("daemon PID file integration", () => {
         await new Promise(resolve => setTimeout(resolve, 500));
 
         const firstPid = daemon1.pid!;
-        expect(isDaemonRunning()).toBe(true);
+        expect(isDaemonRunning("user")).toBe(true);
         expect(isProcessRunning(firstPid)).toBe(true);
 
         // Kill first daemon
@@ -307,7 +348,7 @@ describe("daemon PID file integration", () => {
         await new Promise(resolve => setTimeout(resolve, 500));
 
         // Verify first daemon is gone
-        expect(isDaemonRunning()).toBe(false);
+        expect(isDaemonRunning("user")).toBe(false);
         expect(isProcessRunning(firstPid)).toBe(false);
 
         // Spawn second daemon
@@ -336,7 +377,7 @@ describe("daemon PID file integration", () => {
 
         try {
             // Verify second daemon is running with different PID
-            expect(isDaemonRunning()).toBe(true);
+            expect(isDaemonRunning("user")).toBe(true);
             expect(isProcessRunning(daemon2.pid!)).toBe(true);
             const secondPid = parseInt(readFileSync(pidPath, "utf8").trim(), 10);
             expect(secondPid).toBe(daemon2.pid);
@@ -359,7 +400,7 @@ describe("daemon PID file integration", () => {
         expect(isProcessRunning(999999999)).toBe(false);
 
         // isDaemonRunning should return false AND clean up stale file
-        expect(isDaemonRunning()).toBe(false);
+        expect(isDaemonRunning("user")).toBe(false);
         expect(existsSync(pidPath)).toBe(false);
 
         // Now a new daemon should be allowed to spawn
@@ -387,7 +428,7 @@ describe("daemon PID file integration", () => {
         await new Promise(resolve => setTimeout(resolve, 500));
 
         try {
-            expect(isDaemonRunning()).toBe(true);
+            expect(isDaemonRunning("user")).toBe(true);
             expect(isProcessRunning(daemon.pid!)).toBe(true);
         } finally {
             process.kill(daemon.pid!, "SIGTERM");

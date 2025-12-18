@@ -7,7 +7,7 @@ import { ILogger, IUvRunner } from "@defenter/common-ts/types";
  */
 export async function initialize(
     uvRunner: IUvRunner,
-    workspaceRoots: string[],
+    stdinInput: string,
     logger: ILogger,
     ide: string
 ): Promise<void> {
@@ -17,22 +17,15 @@ export async function initialize(
         const uvCommand = uvRunner.getCommand();
         const args = [...uvCommand.args, "--ide-tool", "--ide", ide];
 
-        return new Promise((resolve, reject) => {
+        return new Promise(resolve => {
             const proc = spawn(uvCommand.executable, args, {
                 stdio: "pipe",
                 shell: false,
             });
 
-            // Send common schema input via stdin immediately after spawn
             if (proc.stdin) {
                 try {
-                    const input = JSON.stringify({
-                        conversation_id: `${Date.now()}`.slice(-8),
-                        generation_id: `${Date.now()}`.slice(-8),
-                        hook_event_name: "init",
-                        workspace_roots: workspaceRoots,
-                    });
-                    proc.stdin.write(input);
+                    proc.stdin.write(stdinInput);
                     proc.stdin.end();
                 } catch (error) {
                     logger.error(

@@ -2,21 +2,25 @@ import { spawn } from "child_process";
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { join } from "path";
 import { reportLifecycleEvent } from "./api";
-import { VERSION } from "./version";
+import { ClaudeCodeLogger } from "./logger";
 import {
     getClaudeDaemonPidPath,
+    getClaudeDaemonsDir,
     getClaudeDefenterDir,
+    getClaudePluginRoot,
     getClaudeVersionFilePath,
+    type ClaudeDaemonScope,
 } from "./paths";
-import { ClaudeCodeLogger } from "./logger";
-import { ensureUvxReady } from "./uvx";
+import { VERSION } from "./version";
 
-export async function checkUvxInstalled(): Promise<boolean> {
-    return new Promise(resolve => {
-        const proc = spawn("uvx", ["--version"], { stdio: "pipe" });
-        proc.on("error", () => resolve(false));
-        proc.on("close", code => resolve(code === 0));
-    });
+export function ensureDaemonRunning(
+    scope: ClaudeDaemonScope,
+    root: string | undefined,
+    stdin?: Buffer
+): void {
+    if (!isDaemonRunning(scope, root)) {
+        startDaemon(scope, root, stdin);
+    }
 }
 
 export function getStoredVersion(): string | undefined {
@@ -35,8 +39,8 @@ export function saveVersion(version: string): void {
     writeFileSync(getClaudeVersionFilePath(), version, "utf8");
 }
 
-export function isDaemonRunning(): boolean {
-    const pidPath = getClaudeDaemonPidPath();
+export function isDaemonRunning(scope: ClaudeDaemonScope, root?: string): boolean {
+    const pidPath = getClaudeDaemonPidPath(scope, root);
     if (!existsSync(pidPath)) {
         return false;
     }
@@ -59,34 +63,38 @@ export function isDaemonRunning(): boolean {
     }
 }
 
-export function startDaemon(): void {
+export function startDaemon(
+    scope: ClaudeDaemonScope,
+    root?: string,
+    stdin?: Buffer
+): void {
     const logger = new ClaudeCodeLogger();
-    const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
-    if (!pluginRoot) {
-        logger.error("CLAUDE_PLUGIN_ROOT not set");
-        return;
+    const pluginRoot = getClaudePluginRoot();
+
+    const daemonsDir = getClaudeDaemonsDir();
+    if (!existsSync(daemonsDir)) {
+        mkdirSync(daemonsDir, { recursive: true });
     }
 
-    const daemon = spawn("node", [join(pluginRoot, "dist", "launcher.js"), "daemon"], {
+    const args = ["daemon", "--scope", scope];
+    if (scope === "project" && root) {
+        args.push("--root", root);
+    }
+
+    const daemon = spawn("node", [join(pluginRoot, "dist", "launcher.js"), ...args], {
         detached: true,
-        stdio: "ignore",
+        stdio: ["pipe", "ignore", "ignore"],
         env: process.env,
+        shell: false,
     });
+    daemon.stdin?.end(stdin ?? Buffer.alloc(0));
     daemon.unref();
-    logger.info("Daemon started");
+    logger.info(`Daemon started (scope=${scope})`);
 }
 
-export async function sessionStart(): Promise<void> {
+export async function sessionStart(stdin?: Buffer): Promise<void> {
     const logger = new ClaudeCodeLogger();
     logger.info("Defenter SessionStart");
-
-    try {
-        const uvxExecutable = await ensureUvxReady(logger, VERSION);
-        process.env.DEFENTER_UVX_EXECUTABLE = uvxExecutable;
-    } catch (error) {
-        logger.error("uvx setup failed", error);
-        process.exit(0);
-    }
 
     // Lifecycle event reporting
     try {
@@ -103,11 +111,9 @@ export async function sessionStart(): Promise<void> {
         // never crash on lifecycle reporting
     }
 
-    if (isDaemonRunning()) {
-        logger.info("Daemon already running");
-    } else {
-        startDaemon();
-    }
+    // Start global daemons (project daemons are started on-demand from hooks)
+    ensureDaemonRunning("user", undefined, stdin);
+    ensureDaemonRunning("managed", undefined, stdin);
 
     process.exit(0);
 }

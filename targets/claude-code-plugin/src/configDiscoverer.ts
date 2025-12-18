@@ -1,45 +1,56 @@
 import { join, normalize, resolve } from "path";
-import { homedir } from "os";
 import { IConfigDiscoverer } from "@defenter/common-ts/types";
 import {
     fileExists,
-    getGlobalMcpConfigPaths,
-    getIdeSystemConfigPaths,
+    getClaudeManagedMcpPath,
+    getClaudeProjectMcpConfigPaths,
+    getClaudeUserMcpConfigPath,
 } from "@defenter/common-ts/utils";
+import type { ClaudeDaemonScope } from "./paths";
+
+const normalizeUnique = (paths: string[]) =>
+    Array.from(new Set(paths.map(p => normalize(resolve(p)))));
+
+async function findExistingFiles(paths: string[]): Promise<string[]> {
+    const checks = await Promise.allSettled(
+        paths.map(async p => ({ path: p, exists: await fileExists(p) }))
+    );
+    return checks
+        .filter(
+            (r): r is PromiseFulfilledResult<{ path: string; exists: boolean }> =>
+                r.status === "fulfilled" && r.value.exists
+        )
+        .map(r => r.value.path);
+}
 
 export class ClaudeCodeConfigDiscoverer implements IConfigDiscoverer {
-    async discoverConfigFiles(): Promise<string[]> {
-        const configs: string[] = [];
-        const projectDir = process.env.CLAUDE_PROJECT_DIR;
+    private readonly scope: ClaudeDaemonScope;
+    private readonly root: string | undefined;
 
-        if (projectDir) {
-            const workspacePaths = [
-                join(projectDir, "mcp.json"),
-                join(projectDir, ".mcp.json"),
-                join(projectDir, ".claude", "mcp.json"),
-            ];
-            configs.push(...(await this.findExistingFiles(workspacePaths)));
-        }
-
-        const systemPaths = getIdeSystemConfigPaths(homedir()).claude || [];
-        configs.push(...(await this.findExistingFiles(systemPaths)));
-
-        // Enterprise/global paths
-        const globalPaths = getGlobalMcpConfigPaths().claude || [];
-        configs.push(...(await this.findExistingFiles(globalPaths)));
-
-        return Array.from(new Set(configs.map(p => normalize(resolve(p)))));
+    constructor(scope: ClaudeDaemonScope, root?: string) {
+        this.scope = scope;
+        this.root = root;
     }
 
-    private async findExistingFiles(paths: string[]): Promise<string[]> {
-        const checks = await Promise.allSettled(
-            paths.map(async p => ({ path: p, exists: await fileExists(p) }))
-        );
-        return checks
-            .filter(
-                (r): r is PromiseFulfilledResult<{ path: string; exists: boolean }> =>
-                    r.status === "fulfilled" && r.value.exists
-            )
-            .map(r => r.value.path);
+    async discoverConfigFiles(): Promise<string[]> {
+        switch (this.scope) {
+            case "project": {
+                const root = this.root;
+                if (!root) {
+                    return [];
+                }
+                const workspacePaths = getClaudeProjectMcpConfigPaths(root);
+                return normalizeUnique(await findExistingFiles(workspacePaths));
+            }
+            case "user": {
+                const userPaths = [getClaudeUserMcpConfigPath()];
+                return normalizeUnique(await findExistingFiles(userPaths));
+            }
+            case "managed": {
+                const managed = getClaudeManagedMcpPath();
+                const paths = managed ? [managed] : [];
+                return normalizeUnique(await findExistingFiles(paths));
+            }
+        }
     }
 }

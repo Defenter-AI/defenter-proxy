@@ -1,4 +1,4 @@
-import vscode from "vscode";
+import * as vscode from "vscode";
 import { ConfigurationMonitor } from "@defenter/common-ts/mcp/monitor";
 import { CursorHooksMonitor } from "@defenter/common-ts/hooks/monitor";
 import { initialize as initializeCursorHooks } from "@defenter/common-ts/hooks/initialize";
@@ -15,7 +15,10 @@ import {
 } from "./utils";
 import { reportLifecycleEvent } from "./api";
 import { IErrorHandler, ILogger } from "@defenter/common-ts/types";
-import { getCursorUserHooksPath } from "@defenter/common-ts/utils";
+import {
+    buildCursorHooksInitInput,
+    getCursorUserHooksPath,
+} from "@defenter/common-ts/utils";
 
 class VscodeLoggerAdapter implements ILogger {
     debug(message: string, ...args: any[]): void {
@@ -103,7 +106,12 @@ const performInitialization = async (
         const hooksFilePath = getCursorUserHooksPath();
         const workspaceRoots =
             vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath) || [];
-        await initializeCursorHooks(state.uvRunner, workspaceRoots, logger, "cursor");
+        await initializeCursorHooks(
+            state.uvRunner,
+            buildCursorHooksInitInput(workspaceRoots),
+            logger,
+            "cursor"
+        );
         await state.cursorHooksMonitor.startMonitoring([hooksFilePath]);
     }
 
@@ -153,7 +161,7 @@ export async function activate(context: vscode.ExtensionContext) {
             await vscode.window.withProgress(
                 {
                     location: vscode.ProgressLocation.Notification,
-                    title: `🛠️ ${isFirstActivation ? "Installing" : "Updating"} Defenter, please wait...`,
+                        title: `${isFirstActivation ? "Installing" : "Updating"} Defenter, please wait...`,
                     cancellable: false,
                 },
                 // initialize will take some time,
@@ -169,13 +177,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
             // Show the appropriate message
             if (isFirstActivation) {
-                await showPersistentAction("✅ Defenter Installed", "Activate", () => {
+                await showPersistentAction("Defenter installed", "Activate", () => {
                     setTimeout(() => {
                         vscode.commands.executeCommand("workbench.action.reloadWindow");
                     }, 100);
                 });
             } else {
-                await showPersistentAction("✅ Defenter updated", "Apply changes", () => {
+                await showPersistentAction("Defenter updated", "Apply changes", () => {
                     setTimeout(() => {
                         vscode.commands.executeCommand("workbench.action.reloadWindow");
                     }, 100);
@@ -184,7 +192,7 @@ export async function activate(context: vscode.ExtensionContext) {
         } else {
             // No update needed, just initialize normally
             await performInitialization({ context, uvRunner });
-            vscode.window.showInformationMessage(`✅ Defenter activated`);
+            vscode.window.showInformationMessage("Defenter activated");
         }
     } catch (error) {
         log.error("Failed to activate Defenter", error);

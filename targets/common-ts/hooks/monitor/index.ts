@@ -324,20 +324,34 @@ export class ClaudeCodeHooksMonitor {
             return;
         }
 
-        this.isMonitoring = true;
+        this.logger.info(
+            `Claude Code Hooks: Starting monitoring for ${settingsFilePaths.length} settings file(s)`
+        );
+
+        const watchable: string[] = [];
+        for (const settingsPath of settingsFilePaths) {
+            this.logger.info(`Claude Code Hooks: Processing ${settingsPath}`);
+            try {
+                await this.registerHooks(settingsPath);
+                watchable.push(settingsPath);
+            } catch (error) {
+                // per-file failure must not stop monitoring other settings files
+                this.logger.error(
+                    `Claude Code Hooks: Failed to process ${settingsPath}`,
+                    error
+                );
+            }
+        }
 
         try {
-            this.logger.info(
-                `Claude Code Hooks: Starting monitoring for ${settingsFilePaths.length} settings file(s)`
-            );
-
-            for (const settingsPath of settingsFilePaths) {
-                this.logger.info(`Claude Code Hooks: Processing ${settingsPath}`);
-                await this.registerHooks(settingsPath);
+            if (!watchable.length) {
+                throw new Error(
+                    "Claude Code Hooks: No settings files could be processed"
+                );
             }
 
-            await this.fileWatcher.startWatching(settingsFilePaths);
-
+            this.isMonitoring = true;
+            await this.fileWatcher.startWatching(watchable);
             this.logger.info("Claude Code Hooks: Monitoring started successfully");
         } catch (error) {
             this.logger.error("Claude Code Hooks: Failed to start hooks monitoring", error);
@@ -450,7 +464,11 @@ export class ClaudeCodeHooksMonitor {
             return;
         }
 
-        await fs.mkdir(dirname(settingsPath), { recursive: true });
+        try {
+            await fs.mkdir(dirname(settingsPath), { recursive: true });
+        } catch {
+            // best-effort; writing may still fail later
+        }
 
         try {
             await updateJsoncFile(settingsPath, (config: ClaudeCodeSettingsConfig) => {
