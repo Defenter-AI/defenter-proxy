@@ -1,6 +1,7 @@
 import { spawn } from "child_process";
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { join } from "path";
+import { parseClaudeHookJson } from "@defenter/common-ts/utils";
 import { reportLifecycleEvent } from "./api";
 import { ClaudeCodeLogger } from "./logger";
 import {
@@ -111,9 +112,14 @@ export async function sessionStart(stdin?: Buffer): Promise<void> {
         // never crash on lifecycle reporting
     }
 
-    // Start global daemons (project daemons are started on-demand from hooks)
+    // Start daemons for all scopes
+    const parsed = parseClaudeHookJson(stdin);
+    const cwd =
+        typeof parsed?.cwd === "string" && parsed.cwd ? parsed.cwd : process.cwd();
+
     ensureDaemonRunning("user", undefined, stdin);
     ensureDaemonRunning("managed", undefined, stdin);
+    ensureDaemonRunning("project", cwd, stdin);
 
     process.exit(0);
 }

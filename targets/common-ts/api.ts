@@ -16,13 +16,11 @@ export async function reportLifecycleEvent(
     try {
         const userUid = await getUserUid();
         if (!userUid) {
-            console.debug("Lifecycle event skipped: user UID not found");
             return;
         }
 
         const apiUrl = await getApiUrl();
         if (!apiUrl) {
-            console.debug("Lifecycle event skipped: API URL not found");
             return;
         }
 
@@ -43,12 +41,9 @@ export async function reportLifecycleEvent(
         });
 
         if (!response.ok) {
-            console.debug(`Lifecycle event failed: HTTP ${response.status}`);
             return;
         }
-
-        console.debug(`Lifecycle event reported: ${state}`);
-    } catch (error) {
-        console.debug(`Lifecycle event error: ${error}`);
+    } catch {
+        // Silently ignore lifecycle reporting errors
     }
 }

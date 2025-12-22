@@ -10,10 +10,10 @@ const logger = new ClaudeCodeLogger();
 
 async function main(logger: ClaudeCodeLogger) {
     const command = process.argv[2];
+    const stdin = await readAllStdin();
 
     switch (command) {
         case "session-start": {
-            const stdin = await readAllStdin();
             await sessionStart(stdin);
             break;
         }
@@ -21,7 +21,6 @@ async function main(logger: ClaudeCodeLogger) {
             const uvRunner = new ClaudeCodeUvRunner();
             await uvRunner.initialize();
 
-            const stdin = await readAllStdin();
             const parsed = parseClaudeHookJson(stdin);
             const cwd =
                 typeof parsed?.cwd === "string" && parsed.cwd
@@ -48,8 +47,7 @@ async function main(logger: ClaudeCodeLogger) {
         }
         case "daemon": {
             const opts = parseRunDaemonOptions(process.argv.slice(3));
-            const stdin = await readAllStdin();
-            opts.stdin = stdin;
+            opts.stdin = await readAllStdin();
             await runDaemonScoped(opts);
             break;
         }

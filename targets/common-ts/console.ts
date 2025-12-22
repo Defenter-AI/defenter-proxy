@@ -1,17 +1,19 @@
 import { ILogger, IErrorHandler } from "./types";
 
 /**
- * Console-based logger implementing ILogger
+ * Console-based logger implementing ILogger.
+ * All output goes to stderr to avoid polluting stdout,
+ * which hooks use for structured JSON output.
  */
 export class ConsoleLogger implements ILogger {
     debug(message: string, ...args: any[]): void {
-        console.log(`[DEBUG] ${message}`, ...args);
+        console.error(`[DEBUG] ${message}`, ...args);
     }
     info(message: string, ...args: any[]): void {
-        console.log(`[INFO] ${message}`, ...args);
+        console.error(`[INFO] ${message}`, ...args);
     }
     warn(message: string, ...args: any[]): void {
-        console.warn(`[WARN] ${message}`, ...args);
+        console.error(`[WARN] ${message}`, ...args);
     }
     error(message: string, error?: any): void {
         console.error(`[ERROR] ${message}`, error);

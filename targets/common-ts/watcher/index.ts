@@ -363,7 +363,7 @@ export class FileWatcher {
             }
 
             this.callbacks.logger.info(
-                `📝 Configuration file ${eventType}: ${normalizedPath}`
+                `Configuration file ${eventType}: ${normalizedPath}`
             );
             this.processFile(normalizedPath).catch(error => {
                 this.callbacks.logger.error(

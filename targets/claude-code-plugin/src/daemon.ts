@@ -135,5 +135,7 @@ export async function runDaemonScoped(opts: RunDaemonOptions): Promise<never> {
     }
 
     logger.info("Daemon running");
+    // Keep event loop alive even when no watchers are active
+    setInterval(() => {}, 60000);
     return await new Promise<never>(() => {});
 }
